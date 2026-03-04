@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HYPER SURVIVOR</title>
+  <link rel="stylesheet" href="css/style.css?v=88">
+</head>
+
+<body>
+  <!-- Cinematic Overlay -->
+  <div id="cinematic-overlay" class="h">
+    <video id="cinematic-video" preload="none" playsinline muted>
+      <source src="assets/video/cinematic.mp4" type="video/mp4">
+    </video>
+    <div id="cinematic-skip">PRESS SPACE TO SKIP</div>
+  </div>
+
+  <!-- Web3 Wallet Button (fixed top-right) -->
+  <button class="w3-wallet-btn-fixed" id="btn-wallet" onclick="w3Connect()"><span class="ico-link"></span> CONNECT
+    WALLET</button>
+
+  <div id="gc">
+    <canvas id="cv"></canvas>
+
+    <!-- HUD -->
+    <div id="hud">
+      <div class="hud-bar">
+        <!-- Left: Wave + Timer -->
+        <div class="hud-wave-badge" id="stage-info">WAVE 1</div>
+        <div class="hud-timer" id="wave-timer"></div>
+
+        <div class="hud-sep"></div>
+
+        <!-- Center: HP + Level -->
+        <div class="hud-hp-label">MARGIN</div>
+        <div class="hud-hp-bar">
+          <div class="hud-hp-fill" id="hpb"></div>
+          <span class="hud-hp-text" id="hpt">100/100</span>
+        </div>
+        <div class="hud-level" id="lvl">LV 1</div>
+        <div class="hud-xp-bar">
+          <div class="hud-xp-fill" id="xpb"></div>
+        </div>
+
+        <div class="hud-sep"></div>
+
+        <!-- Right: Gold + Shop -->
+        <div class="hud-gold"><span class="hud-gold-icon ico-gold"></span> <span id="gold">0</span></div>
+        <button id="btn-shop-hud" onclick="openPersistentShop()">SHOP [B]</button>
+
+        <div class="hud-sep"></div>
+
+        <!-- Radio (inline) -->
+        <div id="radio-widget" class="hud-radio-inline h">
+          <span id="radio-indicator" class="radio-dot"></span>
+          <button class="radio-nav" onclick="prevStation()">◀</button>
+          <span id="radio-name" class="radio-name">LOFI</span>
+          <button class="radio-nav" onclick="nextStation()">▶</button>
+          <button id="radio-toggle" class="radio-play" onclick="toggleRadio()">▶</button>
+          <input type="range" class="radio-vol" min="0" max="100" value="50" oninput="setRadioVolume(this.value/100)">
+        </div>
+      </div>
+    </div>
+
+    <div id="freeze-overlay"></div>
+    <div id="damage-flash"></div>
+
+    <!-- Stage Intro Cinematic -->
+    <div class="h" id="stage-intro"></div>
+
+    <!-- Boss Intro Cinematic -->
+    <div class="h" id="boss-intro"></div>
+
+    <!-- Boss Bar -->
+    <div class="boss-bar h" id="boss-bar">
+      <div class="boss-bar-name" id="boss-bar-name">BOSS</div>
+      <div class="boss-bar-sub" id="boss-bar-sub">???</div>
+      <div class="boss-bar-container">
+        <div class="boss-bar-fill" id="boss-bar-fill"></div><span class="boss-bar-text" id="boss-bar-hp">100%</span>
+      </div>
+    </div>
+
+    <!-- Level Up -->
+    <div class="h" id="levelup-modal"></div>
+
+    <!-- Milestone Banner -->
+    <div class="h" id="milestone-banner"></div>
+
+    <!-- Mission Alert -->
+    <div class="h" id="mission-alert"></div>
+
+    <!-- Rug Pull Overlay -->
+    <div class="h" id="rug-pull-overlay"></div>
+
+    <!-- Market Event Banner -->
+    <div class="h" id="market-event-banner"></div>
+
+    <!-- Mobile Controls -->
+    <div id="mobile-controls" class="h">
+      <div id="joystick-zone">
+        <div id="joystick-base">
+          <div id="joystick-stick"></div>
+        </div>
+      </div>
+      <div id="action-buttons">
+        <button id="btn-mobile-dash" class="mobile-btn">DASH</button>
+        <button id="btn-mobile-shop" class="mobile-btn">SHOP</button>
+        <button id="btn-mobile-ult" class="mobile-btn" style="opacity: 0.5;">ULT</button>
+      </div>
+    </div>
+
+    <!-- Pause Menu -->
+    <div class="mo h" id="pause-menu">
+      <div class="mt">PAUSED</div>
+      <div class="menu-separator"></div>
+      <div class="pause-weapons" id="pause-weapons"></div>
+      <div class="pause-stats" id="pause-stats"></div>
+      <div style="display:flex;gap:8px;margin-top:20px">
+        <button class="mb" id="btn-stagemap">MAP</button>
+        <button class="mb" id="btn-settings-pause">SETTINGS</button>
+        <button class="mb primary" id="btn-resume">RESUME</button>
+        <button class="mb red" id="btn-quit">QUIT TO MENU</button>
+      </div>
+      <div class="menu-controls" style="margin-top:12px">
+        <span>ESC</span> resume
+      </div>
+    </div>
+
+    <!-- Settings Menu -->
+    <div class="mo h" id="settings-menu">
+      <div class="mt"
+        style="background:linear-gradient(135deg,var(--cyan),var(--accent-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+        SETTINGS</div>
+      <div class="menu-separator" style="background:linear-gradient(90deg,transparent,var(--cyan),transparent)"></div>
+      <div class="settings-grid">
+        <div class="settings-section">AUDIO</div>
+        <div class="settings-row">
+          <label>Master</label>
+          <input type="range" class="settings-slider" id="set-master" min="0" max="100" value="50">
+          <span class="settings-val" id="set-master-val">50</span>
+        </div>
+        <div class="settings-row">
+          <label>SFX</label>
+          <input type="range" class="settings-slider" id="set-sfx" min="0" max="100" value="60">
+          <span class="settings-val" id="set-sfx-val">60</span>
+        </div>
+        <div class="settings-row">
+          <label>Music</label>
+          <input type="range" class="settings-slider" id="set-music" min="0" max="100" value="30">
+          <span class="settings-val" id="set-music-val">30</span>
+        </div>
+        <div class="settings-row">
+          <label>Radio</label>
+          <input type="range" class="settings-slider" id="set-radio" min="0" max="100" value="50">
+          <span class="settings-val" id="set-radio-val">50</span>
+        </div>
+        <div class="settings-section">GAMEPLAY</div>
+        <div class="settings-row">
+          <label>Screenshake</label>
+          <button class="settings-toggle on" id="set-shake">ON</button>
+        </div>
+        <div class="settings-row">
+          <label>Damage Numbers</label>
+          <button class="settings-toggle on" id="set-dmgnums">ON</button>
+        </div>
+      </div>
+      <button class="mb primary" id="btn-settings-close" style="margin-top:20px">CLOSE</button>
+    </div>
+
+    <!-- Stage Map (Bloomberg Terminal) -->
+    <div class="h" id="stage-map">
+      <canvas id="stage-map-canvas"></canvas>
+      <button id="stage-map-close">GO</button>
+    </div>
+
+    <!-- Main Menu -->
+    <div class="mo" id="mm">
+      <canvas id="menu-bg" class="menu-bg-canvas"></canvas>
+      <div class="menu-content">
+        <div class="menu-logo">
+          <div class="menu-logo-text" data-text="HYPER SURVIVOR">HYPER SURVIVOR</div>
+        </div>
+        <div class="menu-separator"></div>
+        <div class="ms">CHOOSE YOUR PATH</div>
+        <div class="menu-mode-select">
+          <button class="mb menu-mode-btn mode-arcade" id="btn-arcade">
+            <span class="mode-icon ico-arcade"></span>
+            <span class="mode-title">ARCADE</span>
+            <span class="mode-desc">100 waves · No bosses · Pure grind</span>
+          </button>
+          <button class="mb menu-mode-btn mode-adventure" id="btn-adventure">
+            <span class="mode-icon ico-advent"></span>
+            <span class="mode-title">ADVENTURE</span>
+            <span class="mode-desc">10 stages · 10 bosses · Different maps</span>
+          </button>
+        </div>
+        <!-- DEV: Stage select for testing -->
+        <div style="margin:12px auto;text-align:center;">
+          <select id="dev-stage-select"
+            style="background:#111;color:#0f0;border:1px solid #0f0;padding:6px 12px;font-family:monospace;font-size:13px;cursor:pointer;">
+            <option value="0">▶ JUMP TO STAGE...</option>
+            <option value="1">Stage 1 — Toxic Jungle</option>
+            <option value="2">Stage 2 — Penthouse</option>
+            <option value="3">Stage 3 — Server Core</option>
+            <option value="4">Stage 4 — Supercycle Casino</option>
+            <option value="5">Stage 5 — Ruja Palace</option>
+            <option value="6">Stage 6 — Frozen Vault</option>
+            <option value="7">Stage 7 — Fake Court</option>
+            <option value="8">Stage 8 — Tropical Matrix</option>
+            <option value="9">Stage 9 — The Citadel</option>
+            <option value="10">Stage 10 — Final</option>
+          </select>
+        </div>
+        <div class="menu-controls">
+          <span>WASD</span> move &nbsp;&middot;&nbsp;
+          <span>SPACE</span> dash &nbsp;&middot;&nbsp;
+          <span>B</span> shop &nbsp;&middot;&nbsp;
+          <span>R</span> ultimate &nbsp;&middot;&nbsp;
+          <span>AUTO</span> attack &nbsp;&middot;&nbsp;
+          <span>ESC</span> pause
+        </div>
+        <div style="display:flex;gap:8px;justify-content:center">
+          <button class="mb gold lb-open-btn" id="btn-leaderboard"><span class="ico-trophy"></span> LEADERBOARD</button>
+          <button class="mb" id="btn-settings-main">SETTINGS</button>
+        </div>
+        <div id="menu-highscores" class="menu-highscores"></div>
+        <div class="menu-version">v0.6 alpha &middot; built for Hyperliquid &middot; ⛓ HyperEVM</div>
+      </div>
+    </div>
+
+    <!-- Shop (fullscreen) -->
+    <div class="mo h" id="shop">
+      <div class="shop-fullscreen">
+        <div class="shop-header">
+          <div class="shop-title-main">SHOP</div>
+          <div class="shop-gold-display"><span class="ico-gold"></span> <span id="shop-gold-val">0</span></div>
+        </div>
+
+        <div class="inventory" id="inv"></div>
+
+        <div class="player-stats-bar" id="player-stats-bar"></div>
+
+        <div class="shop-columns">
+          <div class="shop-col">
+            <div class="shop-section">
+              <div class="shop-section-header">🔫 WEAPONS</div>
+              <div class="shop-list" id="shop-weps"></div>
+            </div>
+          </div>
+          <div class="shop-col">
+            <div class="shop-section">
+              <div class="shop-section-header">⚡ STATS</div>
+              <div class="shop-list" id="shop-upgrades"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="shop-footer">
+          <button class="mb primary shop-close-btn" id="btn-next-stage">NEXT WAVE</button>
+          <div class="shop-hint">Press <kbd>B</kbd> to open shop anytime &nbsp;·&nbsp; ❤️ Heal from heart drops</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Over -->
+    <div class="mo h" id="gm">
+      <div class="mt" id="go-title"
+        style="background:linear-gradient(135deg,#ff4757,#ff6b81);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+        LIQUIDATED</div>
+      <div class="menu-separator" style="background:linear-gradient(90deg,transparent,#ff4757,transparent)"></div>
+      <div class="stat-row">
+        <div class="stat-item">
+          <div class="stat-value" id="fo-stage">1</div>
+          <div class="stat-label">Wave</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="fo-kills">0</div>
+          <div class="stat-label">Kills</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="fo-time">0:00</div>
+          <div class="stat-label">Time</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="fo-combo">0</div>
+          <div class="stat-label">Best Combo</div>
+        </div>
+      </div>
+      <div class="weapon-recap" id="fo-weapons"></div>
+      <div class="end-stats-grid" id="fo-details"></div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="mb w3-btn w3-connected-only" onclick="w3SubmitScore()" style="display:none">📡 SUBMIT
+          ON-CHAIN</button>
+        <button class="mb primary" id="btn-retry">RETRY</button>
+        <button class="mb" id="btn-menu">MENU</button>
+      </div>
+      <div class="w3-status" id="go-w3-status"></div>
+    </div>
+
+    <!-- Victory -->
+    <div class="mo h" id="vm">
+      <div class="rank-badge" id="v-rank">S</div>
+      <div class="mt"
+        style="background:linear-gradient(135deg,#fdcb6e,#ffeaa7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+        VICTORY</div>
+      <div class="menu-separator" style="background:linear-gradient(90deg,transparent,#fdcb6e,transparent)"></div>
+      <div class="ms">All Markets Conquered</div>
+      <div class="stat-row">
+        <div class="stat-item">
+          <div class="stat-value" id="v-kills">0</div>
+          <div class="stat-label">Total Kills</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="v-time">0:00</div>
+          <div class="stat-label">Time</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="v-combo">0</div>
+          <div class="stat-label">Best Combo</div>
+        </div>
+      </div>
+      <div class="weapon-recap" id="v-weapons"></div>
+      <div class="end-stats-grid" id="v-details"></div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="mb w3-btn w3-connected-only" onclick="w3SubmitScore()" style="display:none">📡 SUBMIT
+          ON-CHAIN</button>
+        <button class="mb w3-btn w3-connected-only" onclick="w3MintAchievement(9)" style="display:none">🎖️ MINT VICTORY
+          NFT</button>
+        <button class="mb gold" id="btn-vmenu">MAIN MENU</button>
+      </div>
+      <div class="w3-status" id="v-w3-status"></div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div class="mo h" id="lb">
+      <div class="lb-container">
+        <div class="lb-header">
+          <div class="mt"
+            style="background:linear-gradient(135deg,var(--gold),var(--accent-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">
+            LEADERBOARD</div>
+          <div class="menu-separator" style="background:linear-gradient(90deg,transparent,var(--gold),transparent)">
+          </div>
+        </div>
+        <div class="lb-lifetime" id="lb-lifetime"></div>
+        <div class="lb-tabs">
+          <button class="lb-tab" data-period="daily">DAILY</button>
+          <button class="lb-tab" data-period="weekly">WEEKLY</button>
+          <button class="lb-tab active" data-period="all">ALL TIME</button>
+        </div>
+        <div class="lb-table-header">
+          <span class="lb-col-rank">#</span>
+          <span class="lb-col-wave">WAVE</span>
+          <span class="lb-col-kills">KILLS</span>
+          <span class="lb-col-time">TIME</span>
+          <span class="lb-col-date">DATE</span>
+        </div>
+        <div class="lb-list" id="lb-list"></div>
+        <div class="lb-empty h" id="lb-empty">NO SCORES YET — GO PLAY!</div>
+        <div class="lb-footer">
+          <button class="mb primary" id="btn-lb-back">BACK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/audio.js?v=68"></script>
+  <script src="js/camera.js?v=68"></script>
+  <script src="js/particles.js?v=70"></script>
+  <script src="js/screenshake.js?v=69"></script>
+  <script src="js/backgrounds.js?v=96"></script>
+  <script src="js/sprites.js?v=72"></script>
+  <script src="js/character.js?v=69"></script>
+  <script src="js/weapons.js?v=72"></script>
+  <script src="js/levelup.js?v=73"></script>
+  <script src="js/intro.js?v=72"></script>
+  <script src="js/missions.js?v=68"></script>
+  <script src="js/ultimate.js?v=44"></script>
+  <script src="js/intensity.js?v=69"></script>
+  <script src="js/degen.js?v=43"></script>
+  <script src="js/radio.js?v=43"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+  <script src="js/game.js?v=127"></script>
+  <script src="js/web3.js?v=1"></script>
+</body>
+
+</html>

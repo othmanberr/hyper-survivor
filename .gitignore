@@ -1,0 +1,30 @@
+# ===== SECURITY =====
+# Private keys, environment secrets
+.env
+.env.*
+*.pem
+*.key
+
+# AI agent configs (exposes shell permissions)
+.claude/
+.agents/
+
+# ===== SYSTEM =====
+.DS_Store
+Thumbs.db
+
+# ===== DEV TOOLS (not needed in repo) =====
+node_modules/
+bg_viewer.html
+copy_bg.js
+server.js
+server.py
+Cyber-Survivor*.html
+assets/backgrounds/Seedream*
+assets/backgrounds/bg_stage1_tile_*
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.swp
+*.swo
