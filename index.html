@@ -6,6 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HYPER SURVIVOR</title>
   <link rel="stylesheet" href="css/style.css?v=88">
+  <script>
+    window.onerror = function (msg, url, lineNo, columnNo, error) {
+      alert("ERROR: " + msg + "\n" + url + ":" + lineNo + ":" + columnNo + "\n" + (error && error.stack ? error.stack : ""));
+      return false;
+    };
+    window.addEventListener('unhandledrejection', function (event) {
+      alert("PROMISE REJECTION: " + event.reason);
+    });
+  </script>
 </head>
 
 <body>
@@ -49,6 +58,7 @@
         <!-- Right: Gold + Shop -->
         <div class="hud-gold"><span class="hud-gold-icon ico-gold"></span> <span id="gold">0</span></div>
         <button id="btn-shop-hud" onclick="openPersistentShop()">SHOP [B]</button>
+        <button id="btn-pause-hud" onclick="togglePause()" style="margin-left: 8px;">PAUSE [ESC]</button>
 
         <div class="hud-sep"></div>
 
@@ -183,6 +193,7 @@
           <div class="menu-logo-text" data-text="HYPER SURVIVOR">HYPER SURVIVOR</div>
         </div>
         <div class="menu-separator"></div>
+        <div class="insert-coin-text">INSERT COIN</div>
         <div class="ms">CHOOSE YOUR PATH</div>
         <div class="menu-mode-select">
           <button class="mb menu-mode-btn mode-arcade" id="btn-arcade">
@@ -296,6 +307,7 @@
         <button class="mb primary" id="btn-retry">RETRY</button>
         <button class="mb" id="btn-menu">MENU</button>
       </div>
+      <div class="insert-coin-text" style="margin-top:24px; font-size:16px;">INSERT COIN TO CONTINUE</div>
       <div class="w3-status" id="go-w3-status"></div>
     </div>
 
@@ -335,6 +347,7 @@
 
     <!-- Leaderboard -->
     <div class="mo h" id="lb">
+      <canvas id="lb-bg" class="menu-bg-canvas"></canvas>
       <div class="lb-container">
         <div class="lb-header">
           <div class="mt"
@@ -369,20 +382,26 @@
   <script src="js/camera.js?v=68"></script>
   <script src="js/particles.js?v=70"></script>
   <script src="js/screenshake.js?v=69"></script>
-  <script src="js/backgrounds.js?v=96"></script>
+  <script src="js/backgrounds.js?v=99"></script>
   <script src="js/sprites.js?v=72"></script>
   <script src="js/character.js?v=69"></script>
   <script src="js/weapons.js?v=72"></script>
   <script src="js/levelup.js?v=73"></script>
   <script src="js/intro.js?v=72"></script>
+  <script src="js/globals.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/combat.js"></script>
+  <script src="js/shop.js"></script>
   <script src="js/missions.js?v=68"></script>
   <script src="js/ultimate.js?v=44"></script>
   <script src="js/intensity.js?v=69"></script>
   <script src="js/degen.js?v=43"></script>
   <script src="js/radio.js?v=43"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
-  <script src="js/game.js?v=127"></script>
-  <script src="js/web3.js?v=1"></script>
+  <script src="js/game.js?v=128"></script>
+  <script src="js/web3.js?v=2"></script>
 </body>
 
 </html>

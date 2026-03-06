@@ -337,6 +337,28 @@ canvas#cv {
   border-color: #ffd700;
 }
 
+#btn-pause-hud {
+  pointer-events: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  color: #00cec9;
+  background: rgba(0, 206, 201, 0.1);
+  border: 1px solid rgba(0, 206, 201, 0.3);
+  border-radius: 6px;
+  padding: 6px 14px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+#btn-pause-hud:hover {
+  background: rgba(0, 206, 201, 0.25);
+  box-shadow: 0 0 14px rgba(0, 206, 201, 0.4);
+  border-color: #00d2d3;
+}
+
 /* Legacy IDs kept for JS compatibility */
 #gold {
   font-family: inherit;
@@ -398,12 +420,41 @@ canvas#cv {
 }
 
 .ms {
-  font-family: 'JetBrains Mono';
-  font-size: 11px;
+  font-family: 'Exo 2', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
   color: rgba(80, 227, 194, 0.5);
   margin-bottom: 16px;
   letter-spacing: 6px;
   text-transform: uppercase;
+}
+
+.insert-coin-text {
+  font-family: 'Exo 2', sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+  color: #ff4757;
+  text-shadow: 0 0 12px rgba(255, 71, 87, 0.8), 0 0 20px rgba(255, 71, 87, 0.4);
+  letter-spacing: 4px;
+  position: fixed;
+  top: 16px;
+  left: 32px;
+  margin: 0;
+  pointer-events: none;
+  z-index: 9999;
+  animation: blinkCoin 1.2s step-end infinite;
+}
+
+@keyframes blinkCoin {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
 }
 
 /* Buttons */
@@ -1539,6 +1590,12 @@ canvas#cv {
   margin-top: 2px;
 }
 
+/* ===== LEADERBOARD ===== */
+#lb {
+  background: transparent !important;
+  backdrop-filter: none !important;
+}
+
 /* ===== WEAPON RECAP ===== */
 .weapon-recap {
   display: flex;
@@ -2522,8 +2579,9 @@ canvas#cv {
 }
 
 .menu-mode-btn .mode-desc {
-  font-family: 'JetBrains Mono';
-  font-size: 9px;
+  font-family: 'Exo 2', sans-serif;
+  font-weight: 600;
+  font-size: 11px;
   letter-spacing: 1px;
   opacity: 0.5;
 }

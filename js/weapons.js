@@ -1,18 +1,18 @@
 // ============ SVG ICONS (shared across all files) ============
 const ICO = {
-  hp:     '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 12.5L1.5 7C0 5.5 0.3 2.8 2.8 2C4.2 1.5 5.8 2.3 7 3.8C8.2 2.3 9.8 1.5 11.2 2C13.7 2.8 14 5.5 12.5 7L7 12.5Z" fill="#ff4757"/></svg>',
-  armor:  '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1L2 3.5V7C2 10.2 4.3 12.3 7 13C9.7 12.3 12 10.2 12 7V3.5L7 1Z" fill="#00cec9" fill-opacity="0.85"/></svg>',
-  speed:  '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 3L7 7L2 11" stroke="#2ed573" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 3L12 7L7 11" stroke="#2ed573" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  hp: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 12.5L1.5 7C0 5.5 0.3 2.8 2.8 2C4.2 1.5 5.8 2.3 7 3.8C8.2 2.3 9.8 1.5 11.2 2C13.7 2.8 14 5.5 12.5 7L7 12.5Z" fill="#ff4757"/></svg>',
+  armor: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1L2 3.5V7C2 10.2 4.3 12.3 7 13C9.7 12.3 12 10.2 12 7V3.5L7 1Z" fill="#00cec9" fill-opacity="0.85"/></svg>',
+  speed: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 3L7 7L2 11" stroke="#2ed573" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 3L12 7L7 11" stroke="#2ed573" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   atkspd: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M8.5 0.5L3 7H7L5.5 13.5L11 7H7L8.5 0.5Z" fill="#ffa502"/></svg>',
   magnet: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 1V7.5C3 9.7 4.8 11.5 7 11.5C9.2 11.5 11 9.7 11 7.5V1H9V7.5C9 8.6 8.1 9.5 7 9.5C5.9 9.5 5 8.6 5 7.5V1H3Z" fill="#a29bfe"/><rect x="2.5" y="1" width="3" height="2" rx="0.3" fill="#ff6b6b"/><rect x="8.5" y="1" width="3" height="2" rx="0.3" fill="#4834d4"/></svg>',
-  gold:   '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" fill="#fdcb6e"/><circle cx="7" cy="7" r="4" fill="none" stroke="#f39c12" stroke-width="0.8"/><path d="M7 4V4.8M7 9.2V10M5.2 5.8C5.2 5 5.9 4.5 7 4.5C8.1 4.5 8.8 5 8.8 5.8C8.8 6.5 8 6.8 7 6.8C6 6.8 5.2 7.2 5.2 8C5.2 8.8 5.9 9.5 7 9.5C8.1 9.5 8.8 8.8 8.8 8" stroke="#805500" stroke-width="0.9" stroke-linecap="round"/></svg>',
+  gold: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" fill="#fdcb6e"/><circle cx="7" cy="7" r="4" fill="none" stroke="#f39c12" stroke-width="0.8"/><path d="M7 4V4.8M7 9.2V10M5.2 5.8C5.2 5 5.9 4.5 7 4.5C8.1 4.5 8.8 5 8.8 5.8C8.8 6.5 8 6.8 7 6.8C6 6.8 5.2 7.2 5.2 8C5.2 8.8 5.9 9.5 7 9.5C8.1 9.5 8.8 8.8 8.8 8" stroke="#805500" stroke-width="0.9" stroke-linecap="round"/></svg>',
   trophy: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 1H10V5C10 7.2 8.7 8.5 7 8.5C5.3 8.5 4 7.2 4 5V1Z" fill="#fdcb6e"/><path d="M4 3H2C2 5 2.8 6 4 6" stroke="#fdcb6e" stroke-width="1.2" stroke-linecap="round"/><path d="M10 3H12C12 5 11.2 6 10 6" stroke="#fdcb6e" stroke-width="1.2" stroke-linecap="round"/><rect x="6" y="8.5" width="2" height="2" fill="#fdcb6e"/><rect x="4.5" y="10.5" width="5" height="1.5" rx="0.5" fill="#fdcb6e"/></svg>',
   medal1: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="9" r="5" fill="#fdcb6e"/><circle cx="8" cy="9" r="3.5" fill="none" stroke="#f39c12" stroke-width="0.8"/><text x="8" y="11.5" text-anchor="middle" fill="#805500" font-size="7" font-weight="bold" font-family="Exo 2">1</text><path d="M6 1L8 4L10 1" fill="#ff4757"/></svg>',
   medal2: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="9" r="5" fill="#c0c0c0"/><circle cx="8" cy="9" r="3.5" fill="none" stroke="#888" stroke-width="0.8"/><text x="8" y="11.5" text-anchor="middle" fill="#555" font-size="7" font-weight="bold" font-family="Exo 2">2</text><path d="M6 1L8 4L10 1" fill="#4834d4"/></svg>',
   medal3: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="9" r="5" fill="#cd7f32"/><circle cx="8" cy="9" r="3.5" fill="none" stroke="#8B5A2B" stroke-width="0.8"/><text x="8" y="11.5" text-anchor="middle" fill="#5C3310" font-size="7" font-weight="bold" font-family="Exo 2">3</text><path d="M6 1L8 4L10 1" fill="#00cec9"/></svg>',
-  crit:   '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="4.5" fill="none" stroke="#ff6b6b" stroke-width="1.2"/><circle cx="7" cy="7" r="1.5" fill="#ff6b6b"/><line x1="7" y1="0.5" x2="7" y2="3.5" stroke="#ff6b6b" stroke-width="1"/><line x1="7" y1="10.5" x2="7" y2="13.5" stroke="#ff6b6b" stroke-width="1"/><line x1="0.5" y1="7" x2="3.5" y2="7" stroke="#ff6b6b" stroke-width="1"/><line x1="10.5" y1="7" x2="13.5" y2="7" stroke="#ff6b6b" stroke-width="1"/></svg>',
-  heal:   '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="5" y="1" width="4" height="12" rx="1" fill="#2ed573"/><rect x="1" y="5" width="12" height="4" rx="1" fill="#2ed573"/></svg>',
-  power:  '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2L3 7H6L5 12L11 6H8L9 2H7Z" fill="#ff6b6b"/><path d="M5 5L7 2V5" fill="#ff4757" opacity="0.5"/></svg>',
+  crit: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="4.5" fill="none" stroke="#ff6b6b" stroke-width="1.2"/><circle cx="7" cy="7" r="1.5" fill="#ff6b6b"/><line x1="7" y1="0.5" x2="7" y2="3.5" stroke="#ff6b6b" stroke-width="1"/><line x1="7" y1="10.5" x2="7" y2="13.5" stroke="#ff6b6b" stroke-width="1"/><line x1="0.5" y1="7" x2="3.5" y2="7" stroke="#ff6b6b" stroke-width="1"/><line x1="10.5" y1="7" x2="13.5" y2="7" stroke="#ff6b6b" stroke-width="1"/></svg>',
+  heal: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="5" y="1" width="4" height="12" rx="1" fill="#2ed573"/><rect x="1" y="5" width="12" height="4" rx="1" fill="#2ed573"/></svg>',
+  power: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2L3 7H6L5 12L11 6H8L9 2H7Z" fill="#ff6b6b"/><path d="M5 5L7 2V5" fill="#ff4757" opacity="0.5"/></svg>',
 };
 
 // ============ SVG WEAPON ICONS (fallbacks, overridden by sprites.js pixel art) ============
@@ -157,10 +157,13 @@ for (const k in WEAPONS) {
 
 // Shop upgrade items
 const UPGRADES = [
-  { name: 'Speed Boost', icon: ICO.speed, desc: '+25 move speed', cost: 50, apply: () => P.spd += 25 },
-  { name: 'Armor Plating', icon: ICO.armor, desc: '+5 armor', cost: 60, apply: () => P.armor += 5 },
-  { name: 'Critical Eye', icon: ICO.crit, desc: '+10% crit chance', cost: 70, apply: () => P.crit += 10 },
-  { name: 'Max HP Up', icon: ICO.hp, desc: '+30 Max HP', cost: 80, apply: () => { P.maxHp += 30; P.hp += 30; } }
+  { name: 'SPEED+', icon: ICO.speed, desc: '+10 Movement Speed', cost: 120, apply: () => { P.spd += 10; } },
+  { name: 'ARMOR+', icon: ICO.armor, desc: '+1 Damage Reduction', cost: 150, apply: () => { P.armor += 1; } },
+  { name: 'CRIT+', icon: ICO.crit, desc: '+2% Crit Chance', cost: 180, apply: () => { P.crit += 2; } },
+  { name: 'HP+', icon: ICO.hp, desc: '+20 Max HP & Heal', cost: 200, apply: () => { P.maxHp += 20; P.hp += 20; } },
+  { name: 'MAGNET+', icon: ICO.magnet, desc: '+25 Pickup Range', cost: 100, apply: () => { P.magnetRange += 25; } },
+  { name: 'ATK SPD+', icon: ICO.atkspd, desc: '+5% Fire Rate', cost: 250, apply: () => { P.cdMult *= 0.95; } },
+  { name: 'REGEN+', icon: ICO.heal, desc: 'Heal 1 HP / sec', cost: 300, apply: () => { if (!P.regen) P.regen = 0; P.regen += 1; } }
 ];
 
 const HEALS = [];

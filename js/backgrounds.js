@@ -14,9 +14,9 @@ const BG_IMG_SRCS = {
   stage3full: 'assets/backgrounds/bg_stage4_full.jpg?v=2',
   stage4full: 'assets/backgrounds/bg_stage5_full.jpg?v=1',
   stage5: 'assets/backgrounds/bg_stage6_tile.png',
-  stage6: 'assets/backgrounds/bg_stage7_tile.png',
+  stage6full: 'assets/backgrounds/bg_stage7_full.jpg?v=1',
   stage7: 'assets/backgrounds/bg_stage8_tile.png',
-  stage8: 'assets/backgrounds/bg_stage9_tile.png',
+  stage8full: 'assets/backgrounds/bg_stage9_full.jpg?v=1',
   stage9full: 'assets/backgrounds/bg_stage10_full.jpg?v=1'
 };
 let bgImgsLoaded = 0;
@@ -67,13 +67,13 @@ const STAGE_PALETTES = [
 
 // ============ LIGHT SHIMMER — scintillement des lumières ============
 // Génère des spots lumineux par stage (positions en % du monde)
-const STAGE_LIGHTS = (function() {
+const STAGE_LIGHTS = (function () {
   const out = {};
   const P = STAGE_PALETTES;
 
   // Helper: parse hex color to [r,g,b]
   function hex(c) {
-    const v = parseInt(c.replace('#',''), 16);
+    const v = parseInt(c.replace('#', ''), 16);
     return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
   }
 
@@ -101,25 +101,25 @@ const STAGE_LIGHTS = (function() {
   }
 
   // Stage 0 — Neo Tokyo: néons roses + cyans
-  out[0] = gen(0, 20, [hex(P[0].accent), hex(P[0].secondary), [255,80,200], [0,200,255]]);
+  out[0] = gen(0, 20, [hex(P[0].accent), hex(P[0].secondary), [255, 80, 200], [0, 200, 255]]);
   // Stage 1 — Toxic Jungle: lueurs vertes + dorées
-  out[1] = gen(1, 18, [hex(P[1].accent), hex(P[1].secondary), [100,255,80], [200,180,0]]);
+  out[1] = gen(1, 18, [hex(P[1].accent), hex(P[1].secondary), [100, 255, 80], [200, 180, 0]]);
   // Stage 2 — Penthouse: néons magentas + cyans
-  out[2] = gen(2, 22, [hex(P[2].accent), hex(P[2].secondary), [255,100,255], [0,220,255]]);
+  out[2] = gen(2, 22, [hex(P[2].accent), hex(P[2].secondary), [255, 100, 255], [0, 220, 255]]);
   // Stage 3 — Server Core: bleus + cyans intenses
-  out[3] = gen(3, 25, [hex(P[3].accent), hex(P[3].secondary), [30,100,255], [0,180,255]]);
+  out[3] = gen(3, 25, [hex(P[3].accent), hex(P[3].secondary), [30, 100, 255], [0, 180, 255]]);
   // Stage 4 — Supercycle Casino: rouges + verts néon
-  out[4] = gen(4, 22, [hex(P[4].accent), hex(P[4].secondary), [255,50,100], [50,255,50]]);
+  out[4] = gen(4, 22, [hex(P[4].accent), hex(P[4].secondary), [255, 50, 100], [50, 255, 50]]);
   // Stage 5 — Ruja Palace: dorés
-  out[5] = gen(5, 16, [hex(P[5].accent), [255,200,80], [200,170,50]]);
+  out[5] = gen(5, 16, [hex(P[5].accent), [255, 200, 80], [200, 170, 50]]);
   // Stage 6 — Frozen Vault: bleu glacé + blanc
-  out[6] = gen(6, 18, [hex(P[6].accent), [200,230,255], [150,200,255]]);
+  out[6] = gen(6, 18, [hex(P[6].accent), [200, 230, 255], [150, 200, 255]]);
   // Stage 7 — Fake Court: oranges
-  out[7] = gen(7, 16, [hex(P[7].accent), [255,140,40], [200,100,20]]);
+  out[7] = gen(7, 16, [hex(P[7].accent), [255, 140, 40], [200, 100, 20]]);
   // Stage 8 — Tropical Matrix: turquoise
-  out[8] = gen(8, 20, [hex(P[8].accent), [0,255,200], [0,180,150]]);
+  out[8] = gen(8, 20, [hex(P[8].accent), [0, 255, 200], [0, 180, 150]]);
   // Stage 9 — The Citadel: dorés intenses
-  out[9] = gen(9, 18, [hex(P[9].accent), [255,220,50], [255,180,0]]);
+  out[9] = gen(9, 18, [hex(P[9].accent), [255, 220, 50], [255, 180, 0]]);
 
   return out;
 })();
@@ -1301,7 +1301,7 @@ function drawBGTiled(ctx, stage, camX, camY) {
 function drawPlayAreaBorder(ctx, stage, camX, camY) {
   const pal = STAGE_PALETTES[stage] || STAGE_PALETTES[0];
   const L = BUILDING_LEFT - camX, R = BUILDING_RIGHT - camX;
-  const T = BUILDING_TOP - camY,  B = BUILDING_BOTTOM - camY;
+  const T = BUILDING_TOP - camY, B = BUILDING_BOTTOM - camY;
   const rw = 18; // ribbon width
 
   // 1) Soft darkened zones outside playable area

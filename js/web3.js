@@ -218,4 +218,16 @@ if (typeof window !== 'undefined' && window.ethereum) {
 }
 
 // Init: hide Web3-only buttons on load
-document.addEventListener('DOMContentLoaded', _w3UpdateUI);
+document.addEventListener('DOMContentLoaded', () => {
+    _w3UpdateUI();
+    // Show wallet button ONLY on main menu
+    const mm = document.getElementById('mm');
+    const walletBtn = document.getElementById('btn-wallet');
+    if (mm && walletBtn) {
+        const syncWallet = () => {
+            walletBtn.style.display = mm.classList.contains('h') ? 'none' : '';
+        };
+        syncWallet();
+        new MutationObserver(syncWallet).observe(mm, { attributes: true, attributeFilter: ['class'] });
+    }
+});
