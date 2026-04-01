@@ -1,0 +1,86 @@
+{ "frames": {
+   "bunny 0.ase": {
+    "frame": { "x": 0, "y": 0, "w": 69, "h": 59 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 69, "h": 59 },
+    "sourceSize": { "w": 69, "h": 59 },
+    "duration": 100
+   },
+   "bunny 1.ase": {
+    "frame": { "x": 69, "y": 0, "w": 69, "h": 59 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 69, "h": 59 },
+    "sourceSize": { "w": 69, "h": 59 },
+    "duration": 100
+   },
+   "bunny 2.ase": {
+    "frame": { "x": 138, "y": 0, "w": 69, "h": 59 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 69, "h": 59 },
+    "sourceSize": { "w": 69, "h": 59 },
+    "duration": 100
+   },
+   "bunny 3.ase": {
+    "frame": { "x": 207, "y": 0, "w": 69, "h": 59 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 69, "h": 59 },
+    "sourceSize": { "w": 69, "h": 59 },
+    "duration": 100
+   },
+   "bunny 4.ase": {
+    "frame": { "x": 276, "y": 0, "w": 69, "h": 59 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 69, "h": 59 },
+    "sourceSize": { "w": 69, "h": 59 },
+    "duration": 100
+   },
+   "bunny 5.ase": {
+    "frame": { "x": 345, "y": 0, "w": 69, "h": 59 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 69, "h": 59 },
+    "sourceSize": { "w": 69, "h": 59 },
+    "duration": 100
+   },
+   "bunny 6.ase": {
+    "frame": { "x": 414, "y": 0, "w": 69, "h": 59 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 69, "h": 59 },
+    "sourceSize": { "w": 69, "h": 59 },
+    "duration": 100
+   },
+   "bunny 7.ase": {
+    "frame": { "x": 483, "y": 0, "w": 69, "h": 59 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 69, "h": 59 },
+    "sourceSize": { "w": 69, "h": 59 },
+    "duration": 100
+   }
+ },
+ "meta": {
+  "app": "http://www.aseprite.org/",
+  "version": "1.2.13",
+  "image": "bunny.png",
+  "format": "RGBA8888",
+  "size": { "w": 552, "h": 59 },
+  "scale": "1",
+  "frameTags": [
+   { "name": "idle", "from": 0, "to": 4, "direction": "forward" },
+   { "name": "Jump", "from": 5, "to": 6, "direction": "forward" },
+   { "name": "on air", "from": 6, "to": 7, "direction": "forward" }
+  ],
+  "layers": [
+   { "name": "body", "opacity": 255, "blendMode": "normal" },
+   { "name": "Sparks", "opacity": 255, "blendMode": "normal" }
+  ],
+  "slices": [
+  ]
+ }
+}

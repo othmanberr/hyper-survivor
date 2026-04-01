@@ -1,0 +1,438 @@
+Original prompt: fais un tour du code
+
+- 2026-03-14: Focus recentre sur le jeu web uniquement.
+- 2026-03-14: Review initiale relevee:
+  - incoherence de coordonnees monde/ecran sur le boss actif
+  - file de level-up alimentee mais jamais consommee
+  - ultimate sans effet sur le boss
+  - feedback de damage flash non branche
+  - vieux flow de shop between waves a supprimer selon l'intention produit
+- 2026-03-14: Prochaine etape:
+  - corriger les bugs runtime ci-dessus
+  - nettoyer le flow inter-wave shop
+  - valider avec checks statiques et smoke test si possible
+- 2026-03-14: Corrections appliquees:
+  - boss actif recale sur des coordonnees monde derivees de la camera au lieu de coordonnees ecran pures
+  - hitPlayer met maintenant a jour totalDmgTaken et declenche le damage flash
+  - la file de level-up est de nouveau consommee en runtime
+  - l'ultimate frappe maintenant aussi le boss
+  - le vieux flow de shop between waves a ete retire/simplifie
+- 2026-03-14: Validation:
+  - node --check OK sur js/combat.js, js/game.js, js/shop.js, js/ultimate.js
+  - smoke test navigateur bloque: package npm "playwright" absent pour le client du skill
+- 2026-03-14: Pass visuel bullets applique:
+  - renderer des projectiles revu pour trails effiles, glow moins plat et railgun beam en couches
+  - correction du shimmer critique (`G.totalTime` au lieu de `G.t`)
+  - reequilibrage visuel de `data/bullets.json` pour tailles, glow et traines
+  - validation statique OK sur `js/game.js` et parse JSON OK sur `data/bullets.json`
+- 2026-03-14: Refonte structurelle du systeme de bullets:
+  - rendu des projectiles deplace dans `js/bullets.js` avec pipeline central `renderProjectile`
+  - `js/game.js` ne contient plus de logique de rendu bullet specifique
+  - `data/bullets.json` porte maintenant des styles explicites (`slug`, `plasma`, `beam`, `slash`, `axe`, `laser`)
+  - versions de scripts bump dans `index.html` pour eviter le cache navigateur
+- 2026-03-14: Stabilisation anti-plantage du renderer bullets:
+  - protections runtime ajoutees dans `renderProjectile` avec fallback si un visuel plante
+  - temps/dt du jeu rendus defensifs dans `js/bullets.js`
+  - corps de bullets courants caches sur canvas pour reduire le cout par frame
+  - cache-buster `js/bullets.js` mis a jour dans `index.html`
+- 2026-03-14: Pass d'amelioration du systeme de bullets:
+  - historique de positions branche sur les projectiles pour des trails reels basees sur `_posHistory`
+  - reset defensif des projectiles dans le pool pour eviter les fuites de `vis`, trail history et autres etats entre reutilisations
+  - nouveaux effets bullets: ejection de douilles, screen flash, variantes plasma/ember/beam/slash/axe plus riches
+  - impacts renforces dans `js/particles.js` avec rings, line sparks, debris plus lourds et impact explosion dedie
+  - variations audio synth ajoutees (`pistol_shot`, `smg_burst`, `crossbow_twang`, `fire_burst`, `plasma_fire`, `railgun_charge`, `axe_throw`, `electric_throw`)
+  - `data/bullets.json` enrichi avec `casingEject`, `screenEffect` et sons par bullet
+  - nouveau `js/bulletPreview.js` pour un Shooting Range autonome accessible depuis le menu principal et le pause menu
+- 2026-03-14: Validation recente:
+  - `node --check` OK sur `js/bullets.js`, `js/particles.js`, `js/game.js`, `js/audio.js`, `js/input.js`, `js/utils.js`, `js/bulletPreview.js`
+  - parse JSON OK sur `data/bullets.json`
+  - serveur local OK sur `http://localhost:8123/`
+  - tentative du client Playwright du skill bloquee: script ESM du skill chargeable avec `--experimental-default-type=module`, mais package `playwright` absent dans l'environnement
+- 2026-03-14: Pass knockback / hurt sprite hook:
+  - knockback joueur ajoute sur `hitPlayer(dmg, sourceX, sourceY, kbForce)` avec amortissement dans la boucle de mouvement
+  - knockback ennemi centralise via `applyEnemyKnockback(...)` puis branche sur melee, projectiles, chain lightning et falling hammer
+  - `jeffHitReaction()` est maintenant declenche au vrai moment du degat joueur
+  - hook de sprite hurt optionnel ajoute pour Jeff: si `assets/player/jeff_new/hurt.png` ou `assets/player/jeff_new/hurt/<dir>.png` apparait plus tard, l'etat `hit` l'utilisera automatiquement
+  - validation statique OK sur `js/game.js`, `js/combat.js`, `js/character.js`, `js/globals.js`
+- 2026-03-14: Pass fluidite deplacement ennemi:
+  - locomotion centralisee via helpers de steering dans `js/combat.js` (`steerEnemyDirection`, `steerEnemyTowardPoint`, `steerEnemyAtRange`)
+  - poursuite predictive ajoutee via `getPredictedPlayerTarget(...)` pour lisser la chasse sur joueur en mouvement
+  - strafes persistants et zones de distance souples pour crab / nun / mage / pumpkin
+  - dog et crab passent par des charges plus lisses, en verrouillant une direction de lunge au lieu de snaps brutaux de vitesse
+  - separation ennemi lissee avec inertie (`_sepVX/_sepVY`) pour reduire le jitter des groupes
+  - fallback d'IA basique branche sur le nouveau steering
+  - validation statique OK sur `js/combat.js` et `js/game.js`
+- 2026-03-14: Pass fluidite deplacement ennemi v2:
+  - knockback ennemi unifie dans la velocite (`applyEnemyKnockback`) au lieu d'un decalage `kbX/kbY` applique a part dans la boucle ennemie
+  - ajout d'helpers de steering plus riches dans `js/combat.js`: `getEnemyRoleAnchor`, `getEnemyCrowdBlendTarget`, `steerEnemyArrivePoint`, `applyEnemyWallAvoidance`
+  - repartition de groupe autour du joueur via `_roleIndex` pour casser l'effet blob sur melee et ranged
+  - `crab` et `dog` ont maintenant un cycle stalk -> windup -> charge -> recovery avec intentions persistantes
+  - `nun`, `mage` et `pumpkin` se calent sur des slots autour du joueur avec arrivee douce au lieu de trembler autour d'une distance ideale
+  - `bat`, `mushroom` et `doll` melangent poursuite predictive et crowd slots pour mieux respirer en groupe
+  - validation statique OK sur `js/combat.js` et `js/game.js`
+  - prerequis Playwright reverifies: `npx` disponible, serveur local HTTP 200 OK, mais le client du skill reste bloque par l'absence du package npm `playwright`
+- 2026-03-14: Pass fluidite deplacement ennemi v3:
+  - slots de groupe maintenant contraints dans l'aire de jeu via `clampCombatPoint(...)`, avec expansion douce selon la densite locale (`getEnemyLocalPressure`)
+  - selection de teleport plus propre pour `doll` et `mage` via `findEnemyTeleportPoint(...)`, ce qui evite davantage les corners et les zones deja surchargees
+  - `nun` et `pumpkin` ont maintenant une vraie cadence de cast: windup court, tir, recovery mobile, au lieu d'un strafe-shoot continu
+  - clamp des ennemis contre les murs dans `js/game.js` converti en wall-slide avec amortissement tangentiel, pour reduire le jitter en diagonale
+  - validation statique OK sur `js/combat.js` et `js/game.js`
+  - demande d'installation locale de `playwright` lancee pour enfin faire le smoke test navigateur du skill
+- 2026-03-14: Pass personnalite / attaques des ennemis standards:
+  - centralisation d'helpers d'attaque ennemi dans `js/combat.js` (`spawnEnemyProjectile`, `spawnEnemyProjectileFan`, `spawnEnemyHazard`, `bitePlayerIfNear`)
+  - `bat` tire maintenant un screech burst de projectiles rapides
+  - `mushroom` depose un vrai `sporeCloud` persistant et en laisse un a la mort
+  - `crab` lance un fan de shards au debut de sa charge
+  - `doll` teleporte et relache un burst maudit depuis sa nouvelle position
+  - `nun` conserve son role support avec heal pulse + double bolt, `mage` garde blink + tri-shot, mais les tirs standards passent maintenant par une direction de projectile coherente
+  - `dog` a un maul special pendant sa lunge, `pumpkin` tire une salve de fireballs puis allume une zone au point vise
+  - ajout runtime + rendu de `sporeCloud` dans `js/game.js`
+  - validation statique OK sur `js/combat.js` et `js/game.js`
+- 2026-03-14: Pass visuel des intros de stage:
+  - `js/intro.js` porte maintenant une table `STAGE_INTRO_THEMES` avec label, titre, sous-titre et motif par stage
+  - `playNarrative(...)` accepte un theme optionnel et construit un backdrop decoratif (haze, pattern, sigil, chips) avant le texte
+  - `playStageIntro(...)` injecte automatiquement le theme correspondant au stage courant
+  - `css/style.css` ajoute des palettes et patterns specifiques pour les 10 stages (`sector-zero`, `yacht-club`, `penthouse-zoo`, `death-spiral`, `supercycle`, `phantom-palace`, `absolute-zero`, `tribunal`, `bahamas-matrix`, `citadel`)
+  - cache busters bumpes sur `css/style.css` et `js/intro.js`
+  - validation statique OK sur `js/intro.js`
+- 2026-03-15: Pass mecaniques boss code:
+  - `js/globals.js` mappe maintenant les 10 bosses web3 reels sur les cles de boss existantes avec nouveaux noms, couleurs, HP et 2 attaques speciales chacun
+  - `js/combat.js` remplace le runtime boss generique par un systeme dedie avec phase 2, dash telegraphie, clones persistants, shield absorbant et pattern par boss
+  - attaques implementees:
+    - Murad: `shillstorm`, `cultcircle`
+    - Carlos Matos: `bitconnect`, `referral`
+    - Logan Paul: `flashko`, `scamzoo`
+    - Do Kwon: `deathspiral`, `depegfield`
+    - Su Zhu: `supercycle`, `margincall`
+    - Ruja Ignatova: `goldenmirage`, `phantomverdict`
+    - Alex Mashinsky: `freezevault`, `custodychains`
+    - Craig Wright: `copyrightwalls`, `falsebeam`
+    - Sam Bankman-Fried: `backdoorportals`, `balancesheet`
+    - CZ: `marketdomination`, `bisoncharge`
+  - `js/game.js` supporte maintenant les nouveaux hazards boss: `cultorb`, `egg`, `depeg`, `margincall`, `chainsnare`, `falsebeam`, `backdoorPortal`, `marketwall`
+  - le loop projectile supporte aussi un `p._accel` pour les patterns qui prennent de la vitesse
+- 2026-03-15: Validation boss:
+  - `node --check` OK sur `js/globals.js`, `js/combat.js`, `js/game.js`
+  - smoke test Playwright du skill relance hors sandbox: le menu est bien visible (`output/web-game/shot-0.png`)
+  - smoke test Playwright cible sur les 10 bosses et leurs 2 attaques: aucune `pageerror`, chaque pattern instancie bien hazards/projectiles/clones/shield/dash selon le cas
+  - erreurs console restantes vues en navigateur:
+    - multiples `404` deja presentes sur des ressources non resolues
+    - CORS sur l'audio externe `https://chillsky.com/autodj`
+- 2026-03-16: Pass confort visuel flamethrower / hit Jeff:
+  - suppression du `screenEffect` de `fire_pellet` dans `data/bullets.json` pour retirer le flash plein ecran retrigger en continu avec le lance-flammes
+  - `js/character.js` n'utilise plus de blink binaire pour les `iframes`; l'alpha varie tres peu et reste stable
+  - le `hurtShake` aleatoire de Jeff est remplace par une oscillation amortie et deterministic, avec squash/stretch et reaction de hit reduits pour un rendu plus fluide
+  - cache-buster `js/character.js` bump dans `index.html`
+  - validation:
+    - `node --check` OK sur `js/character.js`
+    - parse JSON OK sur `data/bullets.json`
+    - serveur local HTTP 200 OK
+    - smoke test Playwright cible hors sandbox: `output/web-game/flamethrower-no-flash.png` montre le lance-flammes sans flash ecran (`screenFlash: null`), `output/web-game/jeff-hit-smooth.png` montre Jeff touche sans blink dur
+- 2026-03-16: Pass HUD top line simplifie:
+  - la coque HUD du haut n'affiche plus qu'une seule ligne visible avec `mode / wave / timer / HP / etat / XP / level / credits / shop / pause / radio`
+  - les anciennes barres HP/XP restent en DOM mais sont masquees pour garder la compatibilite runtime
+  - `js/ui.js` rend maintenant l'update HP robuste meme si les barres ne sont pas visibles
+  - cache-busters bumps pour `css/style.css` et `js/ui.js`
+- 2026-03-16: Retouche attaque Bat / Crab:
+  - projectile de la `Bat` ralenti dans `js/combat.js` pour que le screech soit plus lisible et moins oppressant en early wave
+  - `Crab` n'utilise plus de bullets au depart de sa charge; elle termine maintenant sa commit par un `pincer slam` en cone court au contact
+  - cache-buster `js/combat.js` bump dans `index.html`
+- 2026-03-15: Phase 1 combat standard executee:
+  - anti-blob: separation ennemie renforcee selon la pression locale + metadata de type, et `spawnContinuous` choisit maintenant des lanes plus propres au lieu de re-spawner des paquets compacts sur les memes colonnes
+  - telegraphes standards: chaque ennemi normal a maintenant un telegraphe court et lisible avant son attaque speciale (`fan`, `ring`, `dash`, `target`) via `_telegraph`
+  - hierarchie visuelle des menaces: ombre au sol, anneaux de menace, icones de role et tri des flèches hors ecran selon `getEnemyThreatScore(...)`
+  - feedback joueur: pulse de hit sur Jeff + `fxPlayerHit(...)` en plus du damage flash existant
+  - capture de validation en combat dans `output/web-game/phase1-smoke.png`
+- 2026-03-15: Validation Phase 1:
+  - `node --check` OK sur `js/combat.js` et `js/game.js`
+  - smoke test Playwright direct OK hors sandbox avec skip du generique puis rendu de 8 ennemis autour du joueur
+  - state capture `output/web-game/phase1-smoke-state.json` confirme 8 telegraphes actifs:
+    - bat `fan`
+    - mushroom `ring`
+    - crab `dash`
+    - doll `fan`
+    - nun `fan`
+    - mage `fan`
+    - dog `dash`
+    - pumpkin `target`
+  - erreurs console restantes toujours preexistantes:
+    - plusieurs `404` assets
+    - CORS `chillsky.com/autodj`
+- 2026-03-15: Pass polish visuel ennemis:
+  - `js/utils.js` gere maintenant une vraie inertie visuelle ennemie: positions de rendu lissees (`drawX/drawY`), direction de sprite lissee (`renderDirAngle`), bob/lean/scale legers, et blend inter-frame (`animBlend`)
+  - les animations de mort ne sont plus forcees a 4 fps: elles jouent plus vite et se terminent par un fade plus court
+  - `js/combat.js` initialise/reinitialise les nouveaux etats visuels au spawn et a la mort (`spawnReveal`, `deathSpin`, etc.)
+  - `js/game.js` applique un rendu ennemi plus vivant:
+    - apparition avec beam/ripple/cross au sol au lieu d'un simple marqueur sec
+    - reveal bref apres le spawn
+    - blend entre frames sur sprites ennemis
+    - translation/rotation/scale de rendu pendant deplacement et mort
+- 2026-03-15: Validation pass polish ennemis:
+  - `node --check` OK sur `js/utils.js`, `js/combat.js`, `js/game.js`
+  - smoke test Playwright direct execute hors sandbox
+  - etat runtime `output/web-game/enemy-polish-state.json`: un ennemi en spawn et un ennemi en death bien presents pendant le test
+  - capture headless ciblee peu exploitable visuellement (canvas noir malgre HUD), donc a revalider a l'oeil en jeu normal
+  - point a retester manuellement en jeu reel:
+    - lisibilite fine des timings de dash / walls / beams
+    - dosage exact des degats et hitboxes de phase 2
+- 2026-03-15: Telegraph de spawn ennemi minimal:
+  - tous les ennemis standards naissent maintenant avec un court `spawnTimer` de 0.24s dans `js/combat.js`
+  - pendant ce delai, ils ne bougent pas, n'attaquent pas, ne collident pas avec le joueur et ne rentrent pas dans le hash spatial
+  - le rendu montre uniquement une petite croix rouge pulsee au sol avant l'apparition dans `js/game.js`
+  - validation statique OK sur `js/combat.js` et `js/game.js`
+  - smoke test navigateur cible tente, mais le flux `startGame()` + cinematics a rendu la capture visuelle peu exploitable; le comportement logique reste couvert par la lecture du runtime
+- 2026-03-15: Camera pass v1:
+  - `js/camera.js` passe d'un recentrage simple a une camera avec look-ahead sur la visee + mouvement, dead zone et smoothing adaptatif
+  - en dash, la camera regarde plus loin et rattrape plus vite
+  - en boss, le focus se place entre Jeff et le boss avec un biais qui garde le joueur prioritaire
+  - cache-buster `js/camera.js` bump dans `index.html`
+  - validation statique OK sur `js/camera.js`
+  - test logique Playwright hors sandbox confirme les offsets:
+  - base `CAM.x ~= 681.5`
+  - mouvement `CAM.x ~= 719.6`
+  - dash `CAM.x ~= 799.7`
+  - boss framing `CAM.x ~= 816.1`
+- 2026-03-15: Camera comfort pass:
+  - `P.angle` ne snap plus instantanement vers l'ennemi le plus proche dans `js/game.js`; la rotation est maintenant bornee par une vitesse de turn
+  - `js/camera.js` amortit le look-ahead avec `CAM.lookX/lookY`, reduit les distances de look-ahead et re-ouvre la dead zone en dash / boss
+  - `js/screenshake.js` remplace le shake aleatoire frame-par-frame par une oscillation sinusoidale plus lisse
+  - le shake continu de danger a fort leverage est throttle et adouci dans `js/game.js`
+  - cache-busters bumpes sur `js/camera.js`, `js/screenshake.js` et `js/game.js`
+  - validations:
+    - `node --check` OK sur `js/camera.js`, `js/game.js`, `js/screenshake.js`
+    - smoke test Playwright du skill OK, screenshot menu regenere dans `output/web-game/shot-0.png`
+    - test logique Playwright confirme des offsets plus doux qu'avant:
+      - base `CAM.x ~= 640.0`
+      - mouvement `CAM.x ~= 645.4`
+      - dash `CAM.x ~= 668.3`
+      - boss framing `CAM.x ~= 712.5`
+- 2026-03-15: Camera comfort v2:
+  - `js/camera.js` reduit encore les offsets (`aimLookAhead`, `moveLookAhead`, `dashLookAhead`, `bossWeight`) et agrandit la dead zone
+  - la camera reste maintenant presque fixe en deplacement normal et ne se jette plus vers le boss
+  - `js/screenshake.js` compresse fortement les petits shakes et reduit la composante verticale
+  - le shake continu de danger est presque decoratif maintenant dans `js/game.js`
+  - cache-busters bumpes sur `js/camera.js`, `js/screenshake.js` et `js/game.js`
+  - validations:
+    - `node --check` OK sur `js/camera.js`, `js/game.js`, `js/screenshake.js`
+    - smoke test Playwright du skill OK, pas de nouvelle erreur hors 404 deja present
+    - test logique Playwright confirme une reduction nette:
+      - base `CAM.x ~= 640.0`
+      - mouvement `CAM.x ~= 640.0`
+ - 2026-04-01: Pass de rangement structurel:
+   - ajout d'un `README.md` a la racine pour expliquer le point d'entree et la structure
+   - deplacement des specs HTML vers `docs/specs/`
+   - deplacement des images source de reference vers `docs/reference-images/`
+   - deplacement des outils locaux (`bg_viewer.html`, `copy_bg.js`, `server.py`, `web_game_playwright_client.js`) vers `tools/dev/`
+   - deplacement du sous-projet annexe `weather_bot_v2` vers `experiments/weather_bot_v2/`
+   - objectif: garder la racine lisible en ne laissant que le runtime du jeu et les fichiers de travail utiles
+      - dash `CAM.x ~= 668.3` -> devient `640.0` au cadre, avec seulement `lookX ~= 47.2`
+      - boss framing `CAM.x ~= 651.5`
+- 2026-03-15: Jeff render size bump:
+  - la hauteur de rendu de Jeff passe de `80` a `86` dans `js/character.js` pour un leger gain de presence visuelle
+  - la hitbox / collision du joueur n'est pas modifiee; changement purement visuel
+  - cache-buster `js/character.js` bump dans `index.html`
+- 2026-03-15: Jeff render size arcade pass:
+  - la hauteur de rendu de Jeff passe de `86` a `92` pour une presence plus arcade a l'ecran
+  - la collision reste intacte; seul le rendu est agrandi
+  - cache-buster `js/character.js` rebump dans `index.html`
+- 2026-03-15: Refonte attitude / spawn / mort des ennemis:
+  - `js/combat.js` ajoute un vrai etat d'attitude partage (`alert`, `hunt`, `cast`, `windup`, `commit`, `recover`, `stagger`, `death`) ainsi qu'une courte phase d'alerte apres apparition
+  - les 8 ennemis standards alimentent maintenant ces attitudes selon leurs phases de comportement, ce qui rend leurs intentions plus lisibles
+  - le spawn utilise un vecteur d'entree, un reveal plus long et un delai d'engagement leger avant la premiere vraie action
+  - le knockback applique maintenant un court `stagger` ennemi avec hit direction memoiree
+  - `js/utils.js` traduit les attitudes en pose visuelle: anticipation, etirement de charge, compression de cast, jitter de stagger, drift de mort
+  - `js/game.js` refond l'apparition et la mort visibles: portal colore par type, lecture d'attitude au sol, burst de mort plus clair
+  - cache-busters bumpes sur `js/utils.js`, `js/combat.js`, `js/game.js`
+  - validations:
+    - `node --check` OK sur `js/combat.js`, `js/utils.js`, `js/game.js`
+    - le client Playwright du skill echoue toujours sur le clic `#btn-arcade` (element jamais stable)
+    - fallback Playwright cible execute, mais la capture headless du canvas reste noire meme menu masque; seuls les `404` assets preexistants remontent, pas de nouvelle `pageerror`
+- 2026-03-15: Buff leger des ennemis:
+  - le preset debug ultra-facile est desactive dans `js/globals.js` (`DEBUG_ALL_ENEMIES = false`)
+  - `js/combat.js` ajoute un buff global mesure sur les ennemis standards: `ENEMY_BASE_HP_MULT = 1.12`, `ENEMY_BASE_DMG_MULT = 1.05`
+  - cache-busters bumpes sur `js/globals.js` et `js/combat.js`
+- 2026-03-15: Bat simplifiee temporairement:
+  - la speciale de la bat ne tire plus qu'un seul projectile au lieu de trois
+  - son telegraphe de tir est resserre pour correspondre a un tir simple
+  - cache-buster `js/combat.js` rebump dans `index.html`
+- 2026-03-15: Nettoyage hit feedback Jeff:
+  - suppression des bandes cyan/magenta du vieux `Cyber Glitch effect` dans `js/character.js`
+  - le feedback de hit sur Jeff repose maintenant sur une simple teinte rouge plus discrete
+  - cache-buster `js/character.js` rebump dans `index.html`
+- 2026-03-15: Nettoyage halo de hit Jeff:
+  - `js/game.js` reduit fortement le ring de hit autour de Jeff: rayon plus court, contour plus fin, plus de remplissage rose
+  - le low HP ring reste intact; seul le feedback de hit immediat est calme
+  - cache-buster `js/game.js` rebump dans `index.html`
+- 2026-03-15: Suppression du carre rouge sur Jeff:
+  - le bloc de teinte de hit plein-rectangle est retire de `js/character.js`
+  - le feedback de hit de Jeff repose maintenant sur la pose `hurt`, le shake, le ring externe et le damage flash, sans artefact carre
+  - cache-buster `js/character.js` rebump dans `index.html`
+- 2026-03-15: Suppression du cercle bleu autour de Jeff:
+  - le rendu n'appelle plus le vieux laser sight / aim arrow de Jeff dans `js/character.js`
+  - cela retire le cercle/halo cyan au centre et la ligne de visee associee pour un rendu plus clean
+  - cache-buster `js/character.js` rebump dans `index.html`
+- 2026-03-15: Nettoyage final hit feedback + Jeff plus grand:
+  - l'overlay `hurt` n'affiche plus les croix rouges ni le rond rouge autour de Jeff dans `js/character.js`
+  - la hauteur de rendu de Jeff passe de `92` a `100` pour renforcer sa presence arcade
+  - cache-buster `js/character.js` rebump dans `index.html`
+- 2026-03-15: Pass gamefeel armes + nettoyage visuel global:
+  - `data/bullets.json` gagne un vrai tuning de kickback visuel par arme (`recoil.kickback`) et un profil `feel` pour les armes lourdes (shake/slowmo au hit avec cooldown)
+  - `js/character.js` rend `jeffShootReaction(...)` dependante de l'arme, ce qui donne plus de recul visuel au crossbow, railgun, axe, plasma, etc.
+  - `js/game.js` ajoute `triggerWeaponImpactFeel(...)` pour donner plus de poids aux impacts lourds et aux coups sur boss sans spammer l'ecran
+  - les orbitals ne dessinent plus pendant l'update; leur rendu revient uniquement dans la phase render, avec un anneau orbital discret et des drones plus propres
+  - les auras ne remplissent plus l'ecran avec un gros aplat; elles utilisent maintenant des rings/ripples plus legers et plus arcade
+  - validations:
+    - `node --check` OK sur `js/game.js` et `js/character.js`
+    - parse JSON OK sur `data/bullets.json`
+    - smoke test navigateur:
+      - le client Playwright du skill se lance bien hors sandbox mais bute encore sur le vieux probleme du bouton `#btn-arcade` "jamais stable"
+      - un smoke test Playwright direct demarre bien la page et ne remonte pas de nouvelle `pageerror`; seules les erreurs deja connues restent (`404` assets et CORS `chillsky`)
+      - artefacts: `output/web-game/weapon-polish-full.png`, `output/web-game/weapon-polish-state.json`
+- 2026-03-15: Systeme de skills joueur centralise:
+  - ajout de `js/playerSkills.js` comme source de verite pour les 7 stats joueur demandees: `max_hp`, `speed`, `armor`, `crit`, `attack_speed`, `damage`, `dodge`
+  - `js/weapons.js` ne porte plus les upgrades de stats; il expose seulement les icones partagees et ajoute l'icone `dodge`
+  - `js/levelup.js` consomme maintenant les upgrades de stats via `buildPlayerLevelUpChoices()` et applique les bonus via `applyPlayerSkillUpgrade(...)`
+  - `js/shop.js` affiche maintenant les 7 stats joueur dans le recap et les 7 upgrades du shop avec preview `avant -> apres`
+  - `js/globals.js` ajoute `P.dodge`, et `js/game.js` le reset correctement au demarrage et dans le dev-start de stage
+  - `js/combat.js` branche une vraie logique de dodge: une esquive annule le hit, donne un court iframe et joue un feedback dedie
+  - `js/particles.js` ajoute `fxPlayerDodge(...)` pour ce feedback
+  - validations:
+    - `node --check` OK sur `js/playerSkills.js`, `js/levelup.js`, `js/shop.js`, `js/combat.js`, `js/game.js`, `js/particles.js`, `js/weapons.js`, `js/globals.js`
+    - smoke test Playwright direct OK pour le systeme:
+      - `hasPlayerSkills: true`
+      - `shopStatsCards: 7`
+    - `shopUpgradeRows: 7`
+    - `upgradeSkillIds`: `max_hp`, `speed`, `armor`, `crit`, `attack_speed`, `damage`, `dodge`
+    - aucune nouvelle `pageerror`; restent seulement les `404` assets et le CORS `chillsky`
+      - artefacts: `output/web-game/player-skills-full.png`, `output/web-game/player-skills-state.json`
+- 2026-03-15: Affichage des skills joueur passe en notation base-100:
+  - `js/playerSkills.js` calcule maintenant un score de lecture `100+` pour chaque skill, en gardant la vraie valeur runtime en detail
+  - le recap stats du shop et un nouveau recap identique dans le menu pause utilisent le meme rendu via `getPlayerSkillCardsHTML(...)`
+  - verification logique hors navigateur: les 7 skills commencent a `100` sur un joueur neuf, et chaque preview de shop passe bien au-dessus de `100`
+  - verification runtime par lecture de code:
+    - `max_hp` alimente les degats/heals/UI
+    - `speed` alimente le mouvement et le dash
+    - `armor` reduit bien les degats recus
+    - `crit` influence bien les tirs
+    - `attack_speed` pilote bien les cooldowns d'armes
+    - `damage` multiplie bien les degats
+    - `dodge` annule bien certains hits avec feedback dedie
+- 2026-03-15: Ajout du skill joueur `knockback`:
+  - `js/playerSkills.js` porte maintenant `knockback` comme 8e skill joueur, note de base `100`, detail runtime `100% KB`
+  - `js/weapons.js` expose une icone partagee `ICO.knockback`
+  - `js/globals.js` et `js/game.js` ajoutent/reset `P.kbMult` a `1`
+  - `js/game.js` multiplie maintenant le knockback des tirs, chaines de drones et impacts de zone joueur via `getPlayerKnockbackMult()`
+  - verification logique hors navigateur: `knockback` apparait dans l'ordre des skills, sa carte commence a `100`, et son preview de shop passe a `108`
+- 2026-03-15: Suppression de l'ecran de choix au level-up:
+  - `js/combat.js` ne passe plus en phase `levelup` et n'ouvre plus `showLevelUpUI(...)`
+  - les level-ups se resolvent maintenant automatiquement sans modal, avec un auto-pick parmi les 3 options generees
+  - l'auto-pick favorise les evolutions, puis nouvelles armes / upgrades, puis stats, pour garder une progression solide sans intervention manuelle
+  - `js/levelup.js` affiche seulement un petit banner `LEVEL UP` avec le gain obtenu
+  - validations:
+    - `node --check` OK sur `js/levelup.js`, `js/combat.js`, `js/game.js`
+    - test logique OK: l'auto-pick priorise bien une evolution quand elle est disponible
+- 2026-03-15: Ajout du lance-flammes + code couleur des niveaux d'armes:
+  - `js/weapons.js` ajoute l'arme `flamethrower` et la palette `Lv1 -> Lv8` pour les armes, du gris au violet
+  - `js/game.js` applique maintenant un burn DOT joueur via `getWeaponBurnSpec(...)` sur les ennemis et les boss
+  - `js/combat.js` gere les statuts de burn (`applyEnemyBurn`, `updateEnemyStatusEffects`, `applyBossBurn`) avec petites particules ember
+  - `js/shop.js`, `js/ui.js` et `js/game.js` reutilisent les tags de niveau colores pour l'inventaire, le pause menu et le recap
+  - verification runtime ciblee:
+    - l'UI du shop liste bien `Flamethrower`
+    - les tags `Lv1` sont bien gris dans l'inventaire
+    - premier tuning du lance-flammes corrige: le cone avait un trou central avec `cnt=6`; passe a `cnt=7`, spread resserre et portee utile augmentee
+- 2026-03-15: Refonte `weapon upgrades v1`:
+  - `js/weapons.js` expose maintenant `getWeaponRuntimeStats(id, level)` pour calculer les vraies stats d'une arme par niveau
+  - les upgrades ne sont plus un simple `+20% damage`: chaque arme a maintenant ses propres paliers (pierce, count, burn, radius, bounces, slash count, orbit speed, etc.)
+  - `js/shop.js` lit les vraies stats runtime pour les lignes du shop et affiche un resume de l'upgrade suivant (`DMG 22->24 • COUNT 6->7`, etc.)
+  - `js/levelup.js` reutilise le meme resume pour les cartes d'upgrade arme
+  - `js/game.js` consomme maintenant les stats runtime d'arme:
+    - `redcandle` peut gagner un double slash
+    - `axe` peut lancer plusieurs haches selon le niveau
+    - `drones` gagnent drones, rayon, vitesse orbitale et cadence de hit
+    - `flamethrower`, `shotgun`, `crossbow`, `smg`, `pistol` et leurs evolutions gagnent de vrais paliers de comportement
+  - validations:
+    - `node --check` OK sur `js/weapons.js`, `js/shop.js`, `js/levelup.js`, `js/game.js`
+    - verification navigateur ciblee:
+      - `getWeaponRuntimeStats('axe', 6)` => `cnt: 2`, `bounces: 5`
+      - `getWeaponRuntimeStats('drones', 6)` => `cnt: 4`, `hitInterval: 0.3`
+      - `getWeaponRuntimeStats('redcandle', 5)` => `slashCount: 2`
+      - ligne shop shotgun: `Upgrade -> Lv6 • DMG 22->24 • COUNT 6->7`
+- 2026-03-15: Refonte d'arsenal appliquee:
+  - `Support Drones` retire du pool actif et du shop (`hidden: true`), conserve seulement en compat runtime
+  - `Crossbow` renomme en `Rail Spiker`
+  - `Red Candle Katana` renomme en `Mono Katana`
+  - nouvelles armes ajoutees:
+    - `Firewall Launcher` (`type: puddle`) pour la zone denial brulante
+    - `Grenade Launcher` (`type: grenade`) pour le splash differe
+  - `js/levelup.js` met a jour le pool de nouvelles armes et retire `new_drones`
+  - `js/shop.js` filtre maintenant les armes `hidden` et affiche les tags speciaux `ZONE` / `✹`
+  - `js/utils.js` resette maintenant les etats projectile `_gravity` et `_explodeOnExpire`
+  - `js/game.js` ajoute:
+    - `detonateFriendlyProjectile(...)`
+    - support du nouveau type `grenade`
+    - puddles brulantes (`friendlyPuddle` applique aussi le burn)
+    - placement dirige du `Firewall Launcher` devant Jeff au lieu d'un random autour du joueur
+  - validations:
+    - `node --check` OK sur `js/weapons.js`, `js/levelup.js`, `js/shop.js`, `js/utils.js`, `js/game.js`
+    - smoke test navigateur cible:
+      - shop: `Firewall Launcher` visible
+      - shop: `Grenade Launcher` visible
+      - shop: `Support Drones` absent
+      - frame forcee de runtime:
+        - `friendlyPuddle` spawn bien avec `area: 96` et `burnDmg: 8`
+        - grenade spawn bien avec `explodeArea: 92`, `gravity: 760`, `ttl: 0.804`
+- 2026-03-15: Correctif de degats allies sur la hache:
+  - les traines laissees par les projectiles `bounce` reutilisaient le hazard hostile `fire`, ce qui permettait a Jeff de se bruler sur ses propres passages
+  - `js/game.js` cree maintenant `friendlyTrailFire` pour conserver le feedback visuel sans collision ni degats sur le joueur
+  - validation statique OK sur `js/game.js`
+- 2026-03-15: Audit global du friendly fire des armes:
+  - `js/game.js` ajoute `isFriendlyWeaponHazard(...)` et un set central des hazards d'armes ami (`friendlyBeam`, `friendlyPuddle`, `friendlyTrailFire`, `fallingHammer`)
+  - tous les hazards armes joueur sont maintenant marques `data.friendly = true` a la creation
+  - la boucle de collisions joueur ignore explicitement ces hazards amis avant tout calcul de degats
+  - `js/utils.js` reinitialise maintenant `type/life/tick/data` pour les hazards recycles dans le pool, afin d'eviter qu'un ancien `data.friendly` ou autre metadonnees ne fuite sur un nouvel objet
+- 2026-03-16: Inter-wave polish pour le mode survival:
+  - le `waveIntro` existant devient un vrai court temps de respiration (`1.6s`) au lieu d'un simple freeze sec
+  - `js/game.js` purge maintenant les projectiles hostiles, hazards hostiles et telegraphes ennemis au debut de l'entre-deux
+  - les pickups sont aspires automatiquement vers Jeff pendant la pause inter-wave, avec une vitesse plus forte que le magnet normal
+  - la reprise de wave donne un micro coussin d'iframes (`0.22s`) pour eviter le redemarrage trop brutal
+  - la banniere inter-wave affiche maintenant un sous-texte de respiration/ramassage
+- 2026-03-16: Tuning de la pause inter-wave et nettoyage visuel:
+  - pause inter-wave allongee a `3.0s`
+  - delai de reprise de spawn resserre a `0.35s` pour que l'action reparte juste apres la respiration
+  - les coeurs ne sont plus aspires automatiquement pendant l'entre-deux; seuls gold/xp sont vacuumes
+  - `drawEnemyReadabilityBase()` est neutralise pour retirer les halos/anneaux/demi-cercles et pictos autour des ennemis
+  - `drawPlayerCombatFeedback()` ne dessine plus les anneaux de low HP / hit autour de Jeff
+  - l'ombre ellipse sous Jeff est retiree de `js/character.js` pour un rendu plus net
+- 2026-03-16: Neutralisation des recompenses de level-up XP:
+  - `js/combat.js` ne convertit plus les level-ups XP en choix/recompense auto (`pendingLevelUps` non alimente par l'XP)
+  - le level-up XP n'ajoute plus de `maxHp` ni de soin gratuit
+  - le niveau continue a monter normalement avec son `LVx` visuel et le son, mais sans arme, stat ou bonus gameplay associe
+- 2026-03-16: Mix d'ennemis par wave revu pour casser le full-bat:
+  - `js/globals.js` debloque plusieurs types des la wave 1 dans les deux modes, avec une progression `maxType` plus agressive en early game
+  - `js/globals.js` ajoute des mixes pondérés par tranche de waves pour garantir plusieurs familles d'ennemis au lieu d'un seul type dominant
+  - `js/game.js` choisit les types via ces poids avec une memoire courte anti-repetition, y compris au sein d'un meme batch de spawn
+  - validation runtime wave 1: les 8 premiers spawns observes = `Bat x3`, `Mushroom x2`, `Crab x3`; screenshot de controle dans `output/web-game/wave-mix-wave1.png`
+- 2026-03-16: Magnet leger pour les coeurs:
+  - `js/game.js` ajoute un magnet coeur discret en jeu normal (`range 110`, `pull 240`) uniquement si Jeff n'est pas full HP
+  - la pause inter-wave ne force toujours pas les coeurs a venir tout seuls; le changement ne touche que le magnet normal
+- 2026-03-16: Refonte du HUD haut en mode floating:
+  - `index.html` decoupe la barre du haut en cartes flottantes distinctes: stage, timer, bloc central margin/xp/level, gold, actions et radio
+  - `css/style.css` remplace la barre pleine largeur par un layout glass/floating avec cartes arrondies, profondeur, meilleur contraste et responsive mobile
+  - `js/ui.js` ajoute des etats visuels `STABLE / BRUISED / CRITICAL`, affiche `xp / xpNext`, et met a jour le kicker `SURVIVAL / ADVENTURE`
+  - validation runtime: captures `output/web-game/hud-redesign-gameplay.png` et `output/web-game/hud-redesign-live.png`
+- 2026-03-16: Recomposition HUD tactique:
+  - le bloc gauche devient une carte de run fusionnee (`wave + timer + statut de phase`) pour une lecture plus directe
+  - le radar est recompose en panneau tactique complet sur la droite avec label de phase, minimap, `KILLS` et `HOSTILES`
+  - le vieux compteur de kills canvas en bas a droite est supprime; les kills sont maintenant integres au panneau radar
+  - les indicateurs hors-ecran evitent maintenant le panneau radar pour limiter les collisions visuelles
+  - validation runtime: capture `output/web-game/hud-layout-v2.png`
+- 2026-03-16: Allegement HUD suite retour utilisateur:
+  - le bloc gauche est simplifie en une seule ligne utile (`mode / wave / timer / kills`) sans sous-texte ni double hiérarchie
+  - le radar perd son gros panneau et devient un cercle tactique plus discret avec un label minimal et un compteur `HOST`
+  - les cartes HUD gagnent en transparence, perdent du padding, de l'ombre et de la bordure pour alleger l'ensemble
+  - validation runtime: capture `output/web-game/hud-layout-lite.png`
+- 2026-03-16: HUD recompose en coque unique:
+  - `index.html` remplace les multiples cartes du haut par une seule fenetre flottante avec une ligne meta unifiee et deux barres compactes
+  - `css/style.css` unifie la typo du HUD haut sur `JetBrains Mono` en petite taille constante, et remplace shop/pause par des boutons icone + raccourci
+  - le compteur de kills redevient un element distinct en bas a droite (`hud-kills-corner`)
+  - validation runtime: capture `output/web-game/hud-shell-live.png`

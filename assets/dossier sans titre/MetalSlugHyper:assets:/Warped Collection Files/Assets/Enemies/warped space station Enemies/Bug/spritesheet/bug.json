@@ -1,0 +1,67 @@
+{ "frames": {
+   "bug 0.ase": {
+    "frame": { "x": 0, "y": 0, "w": 70, "h": 41 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 70, "h": 41 },
+    "sourceSize": { "w": 70, "h": 41 },
+    "duration": 50
+   },
+   "bug 1.ase": {
+    "frame": { "x": 70, "y": 0, "w": 70, "h": 41 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 70, "h": 41 },
+    "sourceSize": { "w": 70, "h": 41 },
+    "duration": 50
+   },
+   "bug 2.ase": {
+    "frame": { "x": 140, "y": 0, "w": 70, "h": 41 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 70, "h": 41 },
+    "sourceSize": { "w": 70, "h": 41 },
+    "duration": 50
+   },
+   "bug 3.ase": {
+    "frame": { "x": 210, "y": 0, "w": 70, "h": 41 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 70, "h": 41 },
+    "sourceSize": { "w": 70, "h": 41 },
+    "duration": 50
+   },
+   "bug 4.ase": {
+    "frame": { "x": 280, "y": 0, "w": 70, "h": 41 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 70, "h": 41 },
+    "sourceSize": { "w": 70, "h": 41 },
+    "duration": 50
+   },
+   "bug 5.ase": {
+    "frame": { "x": 350, "y": 0, "w": 70, "h": 41 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 70, "h": 41 },
+    "sourceSize": { "w": 70, "h": 41 },
+    "duration": 50
+   }
+ },
+ "meta": {
+  "app": "http://www.aseprite.org/",
+  "version": "1.2.13",
+  "image": "bug.png",
+  "format": "RGBA8888",
+  "size": { "w": 420, "h": 41 },
+  "scale": "1",
+  "frameTags": [
+  ],
+  "layers": [
+   { "name": "wings", "opacity": 255, "blendMode": "normal" },
+   { "name": "body", "opacity": 255, "blendMode": "normal" }
+  ],
+  "slices": [
+  ]
+ }
+}
