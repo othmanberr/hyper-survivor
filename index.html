@@ -203,7 +203,6 @@
             <div class="pause-actions">
               <button class="mb" id="btn-stagemap">MAP</button>
               <button class="mb" id="btn-settings-pause">SETTINGS</button>
-              <button class="mb" id="btn-range-pause">SHOOTING RANGE</button>
               <button class="mb primary" id="btn-resume">RESUME</button>
               <button class="mb red" id="btn-quit">QUIT TO MENU</button>
             </div>
@@ -226,11 +225,6 @@
       <div class="settings-grid">
         <div class="settings-section">AUDIO</div>
         <div class="settings-row">
-          <label>Master</label>
-          <input type="range" class="settings-slider" id="set-master" min="0" max="100" value="50">
-          <span class="settings-val" id="set-master-val">50</span>
-        </div>
-        <div class="settings-row">
           <label>SFX</label>
           <input type="range" class="settings-slider" id="set-sfx" min="0" max="100" value="60">
           <span class="settings-val" id="set-sfx-val">60</span>
@@ -239,20 +233,6 @@
           <label>Music</label>
           <input type="range" class="settings-slider" id="set-music" min="0" max="100" value="30">
           <span class="settings-val" id="set-music-val">30</span>
-        </div>
-        <div class="settings-row">
-          <label>Radio</label>
-          <input type="range" class="settings-slider" id="set-radio" min="0" max="100" value="50">
-          <span class="settings-val" id="set-radio-val">50</span>
-        </div>
-        <div class="settings-section">GAMEPLAY</div>
-        <div class="settings-row">
-          <label>Screenshake</label>
-          <button class="settings-toggle on" id="set-shake">ON</button>
-        </div>
-        <div class="settings-row">
-          <label>Damage Numbers</label>
-          <button class="settings-toggle on" id="set-dmgnums">ON</button>
         </div>
       </div>
       <button class="mb primary" id="btn-settings-close" style="margin-top:20px">CLOSE</button>
@@ -280,10 +260,9 @@
             <div class="char-showcase-info" id="char-showcase-info"></div>
           </div>
         </div>
-        <div class="select-footer">
-          <div class="select-summary" id="char-select-summary" aria-live="polite"></div>
+        <div class="select-footer char-select-footer">
           <button class="mb" id="btn-char-back">← BACK</button>
-          <button class="mb primary glow-btn" id="btn-char-confirm">LOCK IN →</button>
+          <button class="mb primary glow-btn" id="btn-char-confirm">LOCK</button>
         </div>
       </div>
     </div>
@@ -326,8 +305,6 @@
       <div class="mm-hero">
         <div class="mm-prep-strip">
           <span class="mm-prep-label">PICK YOUR RUN</span>
-          <span class="mm-prep-divider"></span>
-          <span class="mm-prep-copy">Survivor V1 is live now. Arcade is temporarily locked for focused shipping.</span>
         </div>
 
         <div class="mm-stage">
@@ -345,49 +322,28 @@
 
             <!-- Mode Selection -->
             <div class="mm-modes">
-              <button class="mm-mode-card mm-mode-arcade is-locked" id="btn-arcade" data-mode="arcade" aria-disabled="true" aria-describedby="menu-mode-brief">
+              <button class="mm-mode-card mm-mode-arcade" id="btn-arcade" data-mode="arcade">
                 <div class="mm-mode-glow"></div>
-                <span class="mm-mode-badge">COMING SOON</span>
                 <div class="mm-mode-icon">⚡</div>
                 <div class="mm-mode-title">ARCADE</div>
+                <div class="mm-mode-sep"></div>
+                <div class="mm-mode-desc">100 waves · No bosses · Pure grind</div>
+                <div class="mm-mode-meta">Quick pressure test · fastest reruns</div>
+                <div class="mm-mode-arrow">🔓</div>
+              </button>
+              <button class="mm-mode-card mm-mode-adventure is-locked" id="btn-adventure" data-mode="adventure" aria-disabled="true">
+                <div class="mm-mode-glow"></div>
+                <span class="mm-mode-badge">COMING SOON</span>
+                <div class="mm-mode-icon">🗺️</div>
+                <div class="mm-mode-title">ADVENTURE</div>
                 <div class="mm-mode-sep"></div>
                 <div class="mm-mode-desc">Temporarily locked while Survivor V1 ships.</div>
                 <div class="mm-mode-meta">Planned return after V1 stabilization</div>
                 <div class="mm-mode-arrow">🔒</div>
               </button>
-              <button class="mm-mode-card mm-mode-adventure" id="btn-adventure" data-mode="adventure" aria-describedby="menu-mode-brief">
-                <div class="mm-mode-glow"></div>
-                <div class="mm-mode-icon">🗺️</div>
-                <div class="mm-mode-title">SURVIVOR</div>
-                <div class="mm-mode-sep"></div>
-                <div class="mm-mode-desc">V1 live path · 10 stages · 10 bosses</div>
-                <div class="mm-mode-meta">Primary release flow · testnet-ready target</div>
-                <div class="mm-mode-arrow">→</div>
-              </button>
             </div>
           </div>
-          <aside class="mm-side-panel" id="menu-mode-brief" data-mode="adventure">
-            <div class="mm-side-head">
-              <div class="mm-side-kicker" id="menu-brief-kicker">OPERATOR BRIEF</div>
-              <div class="mm-side-title" id="menu-brief-title">Survivor is the shipping lane.</div>
-              <div class="mm-side-copy" id="menu-brief-copy">Focus for V1 is one polished loop: progression, bosses, readability, and reliable testnet integration.</div>
-            </div>
-            <div class="mm-side-grid">
-              <div class="mm-side-card">
-                <span class="mm-side-card-label" id="menu-brief-card-1-label">RUN SHAPE</span>
-                <span class="mm-side-card-value" id="menu-brief-card-1-value">Campaign Lane</span>
-                <span class="mm-side-card-copy" id="menu-brief-card-1-copy">Structured stage flow, boss cadence, and map identity tuned for the first public release.</span>
-              </div>
-              <div class="mm-side-card">
-                <span class="mm-side-card-label" id="menu-brief-card-2-label">BEST FOR</span>
-                <span class="mm-side-card-value" id="menu-brief-card-2-value">V1 Playtests</span>
-                <span class="mm-side-card-copy" id="menu-brief-card-2-copy">Use this path for balancing, QA cycles, and wallet/testnet validation before release.</span>
-              </div>
-            </div>
-            <div id="menu-highscores" class="menu-highscores"></div>
-          </aside>
         </div>
-        <div class="mm-launch-status" id="menu-launch-status">Arcade mode is locked for V1. Survivor is the active release path.</div>
 
         <!-- Bottom HUD bar -->
         <div class="mm-bottom-bar">
@@ -401,7 +357,6 @@
           <div class="mm-bottom-center">
             <button class="mm-hud-btn mm-hud-btn-gold" id="btn-leaderboard"><span class="ico-trophy"></span>
               LEADERBOARD</button>
-            <button class="mm-hud-btn" id="btn-range-main">SHOOTING RANGE</button>
           </div>
           <div class="mm-bottom-right">
             <span class="mm-version">v1 candidate</span>

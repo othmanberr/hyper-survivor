@@ -1,0 +1,26 @@
+*
+!index.html
+!css
+!css/**
+!js
+!js/**
+!assets
+!assets/backgrounds
+!assets/backgrounds/**
+!assets/bosses
+!assets/bosses/**
+!assets/bullets
+!assets/bullets/**
+!assets/enemies
+!assets/enemies/**
+!assets/player
+!assets/player/**
+!assets/video
+!assets/video/**
+!assets/weapons
+!assets/weapons/**
+!assets/Neon Chaser - Google Gemini.mp3
+!data
+!data/**
+!vercel.json
+!README.md

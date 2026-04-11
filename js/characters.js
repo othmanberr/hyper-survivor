@@ -6,61 +6,66 @@ const CHARACTER_DEFS = [
         id: 'jeff',
         name: 'JEFF',
         title: 'The Degen Trader',
-        desc: 'Balanced all-rounder. The OG survivor.',
+        desc: 'Solide partout, mais esquive en carton: il tank avec son ego.',
         color: '#00cec9',
         glow: 'rgba(0, 206, 201, 0.4)',
-        stats: { hp: 100, spd: 200, armor: 0, crit: 5, cdMult: 1, dodge: 0, magnetRange: 100 },
+        // Display points (each stat <= 99)
+        stats: { hp: 62, spd: 60, armor: 40, crit: 46, cdMult: 1, dodge: 30, magnetRange: 100 },
         icon: '💎'
     },
     {
         id: 'hypurr',
         name: 'HYPURR',
         title: 'The Cyber Cat',
-        desc: 'Fast and agile. High speed & crit, low HP.',
+        desc: 'Fusee sous cafeine, mais armure en papier bulle.',
         color: '#7ecfc0',
         glow: 'rgba(126, 207, 192, 0.4)',
-        stats: { hp: 80, spd: 260, armor: 0, crit: 10, cdMult: 0.9, dodge: 8, magnetRange: 120 },
+        // Display points (each stat <= 99)
+        stats: { hp: 45, spd: 82, armor: 18, crit: 55, cdMult: 0.9, dodge: 61, magnetRange: 120 },
         icon: '🐱'
     },
     {
         id: 'pasheur',
         name: 'PASHEUR',
         title: 'The Shadow Hacker',
-        desc: 'Stealthy infiltrator. High dodge & crit damage.',
+        desc: 'Crit monster, mais barre de vie sponsorisee par le mode hardcore.',
         color: '#39ff14',
         glow: 'rgba(57, 255, 20, 0.4)',
-        stats: { hp: 85, spd: 230, armor: 1, crit: 12, cdMult: 0.85, dodge: 15, magnetRange: 110 },
+        // Display points (each stat <= 99)
+        stats: { hp: 38, spd: 58, armor: 28, crit: 72, cdMult: 0.85, dodge: 74, magnetRange: 110 },
         icon: '🕵️'
     },
     {
         id: 'catbalette',
         name: 'CATBALETTE',
         title: 'The Cyber Feline',
-        desc: 'Nimble and fierce. High crit damage & dodge.',
+        desc: 'Assassin precis, mais vitesse limitee: c est un sniper, pas un scooter.',
         color: '#00e5ff',
         glow: 'rgba(0, 229, 255, 0.4)',
-        stats: { hp: 75, spd: 250, armor: 0, crit: 15, cdMult: 0.8, dodge: 12, magnetRange: 115 },
+        // Display points (each stat <= 99)
+        stats: { hp: 42, spd: 54, armor: 24, crit: 79, cdMult: 0.8, dodge: 68, magnetRange: 115 },
         icon: '🐾'
     },
     {
         id: 'pip',
         name: 'PIP',
         title: 'The Crystal Knight',
-        desc: 'Tiny but mighty. High armor & balanced stats.',
+        desc: 'Petit tank adorable, mais ses critiques ont oublie de venir au briefing.',
         color: '#66ffcc',
         glow: 'rgba(102, 255, 204, 0.4)',
-        stats: { hp: 90, spd: 220, armor: 3, crit: 8, cdMult: 0.95, dodge: 5, magnetRange: 130 },
+        // Display points (each stat <= 99)
+        stats: { hp: 78, spd: 40, armor: 70, crit: 26, cdMult: 0.95, dodge: 32, magnetRange: 130 },
         icon: '💎'
     }
 ];
 
 // ============ STAT DISPLAY CONFIG ============
 const CHAR_STAT_BARS = [
-    { key: 'hp', label: 'HP', max: 200, color: '#ff6b6b' },
-    { key: 'spd', label: 'SPD', max: 300, color: '#00cec9' },
-    { key: 'armor', label: 'ARM', max: 6, color: '#a29bfe' },
-    { key: 'crit', label: 'CRIT', max: 20, color: '#fdcb6e' },
-    { key: 'dodge', label: 'DODGE', max: 25, color: '#fd79a8' }
+    { key: 'hp', label: 'HP', max: 99, color: '#ff6b6b' },
+    { key: 'spd', label: 'SPD', max: 99, color: '#00cec9' },
+    { key: 'armor', label: 'ARM', max: 99, color: '#a29bfe' },
+    { key: 'crit', label: 'CRIT', max: 99, color: '#fdcb6e' },
+    { key: 'dodge', label: 'DODGE', max: 99, color: '#fd79a8' }
 ];
 
 // ============ STATE ============
@@ -73,13 +78,14 @@ function getSelectedCharacter() {
 
 function applyCharacterStats(P) {
     const ch = getSelectedCharacter();
-    P.hp = ch.stats.hp;
-    P.maxHp = ch.stats.hp;
-    P.spd = ch.stats.spd;
-    P.armor = ch.stats.armor;
-    P.crit = ch.stats.crit;
+    // Convert display points (0..99) to gameplay runtime values.
+    P.maxHp = Math.round(70 + ch.stats.hp * 1.2);
+    P.hp = P.maxHp;
+    P.spd = Math.round(160 + ch.stats.spd * 1.6);
+    P.armor = Math.round(ch.stats.armor / 8);
+    P.crit = Math.round(ch.stats.crit * 0.35);
     P.cdMult = ch.stats.cdMult;
-    P.dodge = ch.stats.dodge;
+    P.dodge = Math.round(ch.stats.dodge * 0.35);
     P.magnetRange = ch.stats.magnetRange;
 }
 
@@ -133,13 +139,14 @@ function _updateShowcase(ch) {
     // Glow background
     glowEl.style.background = 'radial-gradient(circle, ' + ch.glow + ' 0%, transparent 70%)';
 
-    // Fighter portrait — large standing sprite
+    // Use the same compact in-game sprite as the roster cards (no large portrait).
     spriteEl.textContent = '';
     const img = document.createElement('img');
     img.alt = ch.name;
     img.className = 'char-showcase-img';
+    img.classList.add('is-mini');
     img.draggable = false;
-    img.src = CHAR_SELECT_PATHS[ch.id] || CHAR_SPRITE_PATHS[ch.id];
+    img.src = CHAR_SPRITE_PATHS[ch.id];
     spriteEl.appendChild(img);
 
     // Info panel — built from hardcoded CHARACTER_DEFS data only
@@ -194,6 +201,24 @@ function _updateShowcase(ch) {
     showcase.classList.add('char-showcase-enter');
 }
 
+function _updateCharSelectSummary(ch) {
+    const confirmBtn = document.getElementById('btn-char-confirm');
+    if (confirmBtn) confirmBtn.textContent = 'LOCK';
+}
+
+function _updateMapSelectSummary(pal, idx) {
+    const summary = document.getElementById('map-select-summary');
+    const confirmBtn = document.getElementById('btn-map-confirm');
+    if (summary) {
+        summary.innerHTML = `
+      <div class="select-summary-kicker">ARCADE ENTRY</div>
+      <div class="select-summary-value" style="color:${pal.accent}">MAP ${idx + 1} · ${pal.name}</div>
+      <div class="select-summary-copy">Fast launch, pressure-first loop, immediate score chase.</div>
+    `;
+    }
+    if (confirmBtn) confirmBtn.textContent = `START ${pal.name.toUpperCase()} ⚡`;
+}
+
 function showCharacterSelect() {
     const el = document.getElementById('char-select');
     el.classList.remove('h');
@@ -230,6 +255,7 @@ function showCharacterSelect() {
             grid.querySelectorAll('.char-roster-card').forEach(c => c.classList.remove('selected'));
             card.classList.add('selected');
             _updateShowcase(ch);
+            _updateCharSelectSummary(ch);
         });
 
         grid.appendChild(card);
@@ -238,6 +264,7 @@ function showCharacterSelect() {
     // Show initial showcase
     const initialChar = getSelectedCharacter();
     _updateShowcase(initialChar);
+    _updateCharSelectSummary(initialChar);
 }
 
 function hideCharacterSelect() {
@@ -272,17 +299,21 @@ function showMapSelect() {
             _selectedMapIdx = idx;
             grid.querySelectorAll('.map-card').forEach(c => c.classList.remove('selected'));
             card.classList.add('selected');
+            _updateMapSelectSummary(pal, idx);
         });
 
         grid.appendChild(card);
     });
+
+    const initialMap = STAGE_PALETTES[_selectedMapIdx] || STAGE_PALETTES[0];
+    _updateMapSelectSummary(initialMap, _selectedMapIdx);
 }
 
 function hideMapSelect() {
     document.getElementById('map-select').classList.add('h');
 }
 
-// ============ FLOW: Arcade → CharSelect → MapSelect → Start ============
+// ============ FLOW: Arcade → CharSelect → Start (Map 1 forced) ============
 function startArcadeFlow() {
     // Hide main menu
     document.querySelectorAll('.mo').forEach(m => m.classList.add('h'));
@@ -293,7 +324,11 @@ function startArcadeFlow() {
 
 function confirmCharacterSelect() {
     hideCharacterSelect();
-    showMapSelect();
+    // V1 flow: map selection is disabled, always start on map 1.
+    _selectedMapIdx = 0;
+    G.arcadeMap = 0;
+    G.selectedCharacter = _selectedCharId;
+    startGame('arcade');
 }
 
 function confirmMapSelect() {

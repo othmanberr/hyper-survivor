@@ -231,6 +231,10 @@ function playNarrative(text, align, themeOrOnComplete, maybeOnComplete) {
 }
 
 function playStageIntro(stageIndex, onComplete) {
+  if (window.__HS_QA_MODE) {
+    if (typeof onComplete === 'function') onComplete();
+    return;
+  }
   // If no specific stage text, skip or use generic
   const text = NARRATIVE_TEXTS.stages[stageIndex] || `Proceeding to Area ${stageIndex + 1}...`;
   const theme = STAGE_INTRO_THEMES[stageIndex] || null;

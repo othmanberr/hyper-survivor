@@ -5529,6 +5529,12 @@ canvas#cv {
   margin-top: 8px;
 }
 
+.char-select-footer {
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+}
+
 .select-summary {
   flex: 1 1 320px;
   min-height: 64px;
@@ -5764,6 +5770,12 @@ canvas#cv {
   animation: showcase-float 3s ease-in-out infinite;
 }
 
+.char-showcase-img.is-mini {
+  width: 124px;
+  height: 124px;
+  filter: drop-shadow(0 0 18px var(--char-glow, rgba(0, 206, 201, 0.4)));
+}
+
 @keyframes showcase-float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-8px); }
@@ -5785,6 +5797,7 @@ canvas#cv {
   text-align: center;
   width: 100%;
   max-width: 320px;
+  margin-top: 22px;
 }
 
 .showcase-name {
@@ -6502,32 +6515,24 @@ canvas#cv {
 .mm-stage {
   position: relative;
   z-index: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 30px;
+  display: flex;
+  justify-content: center;
+  gap: 0;
   align-items: stretch;
 }
 
 .mm-stage::before {
-  content: '';
-  position: absolute;
-  inset: 18px 0 24px;
-  border-radius: 36px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.03), transparent 36%),
-    linear-gradient(180deg, rgba(7, 12, 20, 0.42), rgba(5, 7, 14, 0.16));
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  pointer-events: none;
+  content: none;
 }
 
 .mm-main-column {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
+  width: min(980px, 100%);
   min-width: 0;
-  padding: 44px 0 36px 42px;
+  padding: 44px 24px 36px;
   position: relative;
   z-index: 1;
 }
@@ -6535,6 +6540,7 @@ canvas#cv {
 .mm-logo-block {
   margin-bottom: 34px;
   max-width: 700px;
+  text-align: center;
 }
 
 .mm-side-panel {
@@ -6735,10 +6741,11 @@ canvas#cv {
 .mm-tagline {
   max-width: 540px;
   letter-spacing: 4px;
+  text-align: center;
 }
 
 .mm-modes {
-  justify-content: flex-start;
+  justify-content: center;
   gap: 18px;
   width: 100%;
 }
@@ -7243,7 +7250,7 @@ canvas#cv {
   }
 
   .mm-stage::before {
-    inset: 10px 0 18px;
+    content: none;
   }
 
   .mm-main-column {

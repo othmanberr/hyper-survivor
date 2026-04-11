@@ -27,6 +27,36 @@ const CONTRACT_ABI = [
 
 let w3Provider = null, w3Signer = null, w3Contract = null, w3Address = null;
 
+function w3HasEthers() {
+    return typeof window !== 'undefined' && typeof window.ethers !== 'undefined';
+}
+
+function w3GetWalletSupportState() {
+    if (!w3HasEthers()) {
+        return { ok: false, reason: 'Web3 library unavailable in this build.' };
+    }
+    if (!window.ethereum) {
+        return { ok: false, reason: 'Install MetaMask to use Web3 features.' };
+    }
+    return { ok: true, reason: '' };
+}
+
+function w3SyncWalletButtonState() {
+    const btn = document.getElementById('btn-wallet');
+    if (!btn) return;
+    const state = w3GetWalletSupportState();
+    btn.disabled = !state.ok && !w3Address;
+    btn.title = state.ok ? '' : state.reason;
+    if (!state.ok && !w3Address) {
+        btn.classList.remove('connected');
+        btn.innerHTML = '<span class="ico-link"></span> WALLET UNAVAILABLE';
+        return;
+    }
+    if (!w3Address) {
+        btn.innerHTML = '<span class="ico-link"></span> CONNECT WALLET';
+    }
+}
+
 // ─── Wallet Connection ───
 async function w3Connect() {
     const btn = document.getElementById('btn-wallet');
@@ -43,8 +73,10 @@ async function w3Connect() {
         return;
     }
 
-    if (!window.ethereum) {
-        alert('Please install MetaMask to use Web3 features!');
+    const support = w3GetWalletSupportState();
+    if (!support.ok) {
+        alert(support.reason);
+        w3SyncWalletButtonState();
         return;
     }
 
@@ -61,10 +93,10 @@ async function w3Connect() {
             } else throw switchError;
         }
 
-        w3Provider = new ethers.BrowserProvider(window.ethereum);
+        w3Provider = new window.ethers.BrowserProvider(window.ethereum);
         w3Signer = await w3Provider.getSigner();
         w3Address = await w3Signer.getAddress();
-        w3Contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, w3Signer);
+        w3Contract = new window.ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, w3Signer);
 
         const short = w3Address.slice(0, 6) + '...' + w3Address.slice(-4);
         btn.innerHTML = '🟢 ' + short;
@@ -76,10 +108,13 @@ async function w3Connect() {
         }
 
         _w3UpdateUI();
+        w3SyncWalletButtonState();
         console.log('[Web3] Connected:', w3Address);
     } catch (err) {
         console.error('[Web3] Connection failed:', err);
         btn.innerHTML = '<span class="ico-link"></span> CONNECT WALLET';
+        btn.classList.remove('connected');
+        w3SyncWalletButtonState();
         alert('Connection failed: ' + (err.message || err));
     }
 }
@@ -204,6 +239,7 @@ function _w3UpdateUI() {
     document.querySelectorAll('.w3-connected-only').forEach(el => {
         el.style.display = connected ? '' : 'none';
     });
+    w3SyncWalletButtonState();
 }
 
 // ─── Account/Chain Change Listeners ───
@@ -230,4 +266,5 @@ document.addEventListener('DOMContentLoaded', () => {
         syncWallet();
         new MutationObserver(syncWallet).observe(mm, { attributes: true, attributeFilter: ['class'] });
     }
+    w3SyncWalletButtonState();
 });

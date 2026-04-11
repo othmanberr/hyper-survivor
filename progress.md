@@ -218,6 +218,59 @@ Original prompt: fais un tour du code
     - test logique Playwright confirme une reduction nette:
       - base `CAM.x ~= 640.0`
       - mouvement `CAM.x ~= 640.0`
+- 2026-04-03: Pass combat juice / pressure screen:
+  - `js/intensity.js` rend maintenant une intensite ecran dependante du stage, du combo, du leverage, du boss et du low HP, avec edge glow colore, sweep band dynamique et rim de danger
+  - `js/particles.js` enrichit les kills ennemis, elites, boss death, player hit et pickups avec rings, shards et palette du stage pour un feedback plus lisible
+  - `js/combat.js` passe les metadonnees `elite` et `combo` a `fxEnemyDeath(...)` pour que les gros kills aient un impact visuel plus net
+  - objectif de ce pass: renforcer la sensation de puissance et la lisibilite des moments chauds sans obscurcir le centre de l'arene
+- 2026-04-03: Validation pass combat juice / pressure screen:
+  - `node --check` OK sur `js/intensity.js`, `js/particles.js`, `js/combat.js`
+  - run agent reel OK: `2026-04-03T17-32-18_survivor` -> survived, wave 2, kills 33, score 66
+  - captures de validation utiles:
+    - `output/runs/2026-04-03T17-32-18_survivor/screenshots/t15s_wave1.png`
+    - `output/runs/2026-04-03T17-32-18_survivor/screenshots/99_end.png`
+  - suite QA comparee a la baseline smoke:
+    - baseline `2026-04-03T17-21-53_baseline-smoke`
+    - candidate `2026-04-03T17-33-14_candidate-pass1`
+    - verdict `PASS mixed result`
+    - overall `49.5 -> 52.5`
+    - kills `13.5 -> 14.5`
+    - risk `15 -> 11.5`
+- 2026-04-03: Pass boss identity / telegraphs:
+  - `js/globals.js` porte maintenant une table `BOSS_VISUALS` avec accent, secondary, motif, tag et labels d'attaque par boss
+  - `js/combat.js` donne a chaque boss un vrai `intent` visuel avec nom d'attaque, badge au-dessus du sprite, sigil au sol et telegraphe de dash colore
+  - `js/game.js` theme la boss bar en runtime selon le boss actif et injecte l'attaque en cours dans le sous-titre (`phase + intent`)
+  - `startBossIntro()` enrichit aussi l'intro avec le tag identitaire du boss
+- 2026-04-03: Validation pass boss identity / telegraphs:
+  - `node --check` OK sur `js/globals.js`, `js/combat.js`, `js/game.js`
+  - captures Playwright ciblees sur Lenovo:
+    - `output/web-game-boss-pass2/murad_live.png`
+    - `output/web-game-boss-pass2/carlos_live.png`
+  - smoke run gameplay standard toujours OK apres le patch:
+    - `2026-04-03T17-44-08_survivor` -> survived, wave 1, kills 15, score 52
+  - erreurs console observees pendant les captures boss: seulement les `404` deja connus
+- 2026-04-03: Pass boss attack FX / audio:
+  - `js/audio.js` ajoute des cues synth dedies aux patterns boss (`bossCharge`, `bossRing`, `bossGlitch`, `bossShield`, `bossSlam`)
+  - `js/particles.js` ajoute `fxBossAttackCue(...)` et `fxBossAttackImpact(...)` pour donner un burst distinct aux casts et impacts boss
+  - `js/combat.js` branche ces cues de maniere systemique:
+    - `attack(atk)` declenche maintenant un cue visuel/sonore selon le `kind`
+    - `startDash(...)` ajoute un marker cible supplementaire sans doubler le son
+    - `updateDash(...)` et `releaseBalanceSheet(...)` declenchent un vrai impact cue
+- 2026-04-03: Validation pass boss attack FX / audio:
+  - `node --check` OK sur `js/audio.js`, `js/particles.js`, `js/combat.js`
+  - captures Playwright ciblees sur Lenovo:
+    - `output/web-game-boss-pass3/murad_live.png`
+    - `output/web-game-boss-pass3/murad_impact.png`
+    - `output/web-game-boss-pass3/carlos_live.png`
+  - smoke run gameplay standard toujours OK apres le patch:
+    - `2026-04-03T18-54-31_aggro` -> survived, wave 1, kills 12, score 50
+  - erreurs console observees pendant les captures boss: seulement les `404` deja connus
+- 2026-04-03: Pass fondation progression / QA agent:
+  - `processNextLevelUp()` reapplique enfin un vrai choix runtime au lieu de drainer seulement `pendingLevelUps`
+  - ajout d'un hook externe `window._hsSelectLevelUpChoice` dans `js/levelup.js` pour permettre a l'agent de piloter les upgrades sans flow UI fragile
+  - serialisation du dernier choix d'upgrade dans `G.lastLevelUpChoice` et `G.lastLevelUpChoices` pour l'observabilite et le reporting
+  - correction du type pickup `heart` dans l'airdrop pour rester coherent avec le runtime de collecte
+  - cache-busters bumps sur `js/levelup.js`, `js/combat.js`, `js/ultimate.js`
  - 2026-04-01: Pass de rangement structurel:
    - ajout d'un `README.md` a la racine pour expliquer le point d'entree et la structure
    - deplacement des specs HTML vers `docs/specs/`
@@ -436,3 +489,239 @@ Original prompt: fais un tour du code
   - `css/style.css` unifie la typo du HUD haut sur `JetBrains Mono` en petite taille constante, et remplace shop/pause par des boutons icone + raccourci
   - le compteur de kills redevient un element distinct en bas a droite (`hud-kills-corner`)
   - validation runtime: capture `output/web-game/hud-shell-live.png`
+- 2026-04-03: Pass player hit / weapon impact polish:
+  - `js/combat.js` donne maintenant a `hitPlayer(...)` une vraie severite de coup avec direction stockee, shake scale et metadonnees de feedback
+  - `js/character.js` rend `jeffHitReaction(...)` dependante de l'intensite pour mieux vendre les gros impacts
+  - `js/particles.js` enrichit `fxPlayerHit(...)` avec des bursts directionnels et un ring plus fort sur les coups lourds
+  - `js/game.js` ajoute un wedge de hit directionnel sur Jeff et un `G._weaponImpactPulse` screen-space pour les impacts d'armes lourdes, boss, kills et crits
+  - validations:
+    - `node --check` OK sur `js/game.js`, `js/combat.js`, `js/character.js`, `js/particles.js`
+    - etat cible hit/impact capture dans `output/web-game-player-impact-pass4/state.json`
+    - smoke run agent OK: `output/runs/2026-04-03T19-06-04_survivor/report.json`
+    - screenshot gameplay de controle: `output/runs/2026-04-03T19-06-04_survivor/screenshots/t15s_wave1.png`
+- 2026-04-03: Pass enemy death / pickup juice:
+  - `js/combat.js` ajoute un vrai `fxEnemyRewardBurst(...)` sur les kills, differencie le son des elites, et initialise un etat visuel plus riche sur les coeurs droppes
+  - `js/audio.js` gagne des cues dedies `pickupGold`, `pickupXp`, `pickupHeart` et `enemyDeathElite`
+  - `js/particles.js` enrichit `fxPickup(...)` par type et ajoute `fxEnemyRewardBurst(...)` pour mieux vendre gold/xp sans casser l'economie actuelle
+  - `js/game.js` rend enfin les pickups generiques dans le monde (plus seulement les coeurs), ajoute des trails magnetises, et affiche des popups de collecte plus lisibles
+  - validations:
+    - `node --check` OK sur `js/audio.js`, `js/particles.js`, `js/combat.js`, `js/game.js`
+    - capture ciblee arcade OK dans `output/web-game-death-pickup-pass5b/kill_pickup.png` et `output/web-game-death-pickup-pass5b/heart_collect.png`
+    - etat cible valide dans `output/web-game-death-pickup-pass5b/state.json`
+    - smoke run agent OK: `output/runs/2026-04-03T19-16-27_farmer/report.json`
+    - screenshot gameplay de controle: `output/runs/2026-04-03T19-16-27_farmer/screenshots/t15s_wave1.png`
+- 2026-04-03: Pass wave clear / progression juice:
+  - `js/game.js` generalise `showMilestone(...)` avec sous-texte/couleurs/duree, ajoute des helpers de palette et de transition de wave, puis branche des cues visuels/audio sur `wave clear`, `boss inbound` et le vrai `wave start`
+  - `js/game.js` enrichit `waveIntro` avec metadata de vague (`MARKET OPEN`, `RESET · SCOOP · RELOAD`, `FINAL PUSH BEFORE THE BOSS`), compteur central, barre de pression et sous-ligne `THREAT MIX`
+  - `js/game.js` rend le clear boss plus reward-driven avec une banniere parametrable incluant le payout gold et la progression de stage
+  - `js/audio.js` ajoute les cues synth `waveClear` et `waveStart`
+  - `js/levelup.js` remonte `showAutoLevelUpBanner(...)` au niveau du reste du polish: titre contextuel (`NEW WEAPON`, `WEAPON UP`, `STAT BOOST`), couleur par rarete, detail et kicker
+  - validations:
+    - `node --check` OK sur `js/game.js`, `js/audio.js`, `js/levelup.js` en local puis sur Lenovo
+    - client Playwright du skill execute sur une page auto-start temporaire; capture headless blanche ici, mais sans nouvelle erreur console hors `404` deja connu
+    - captures ciblees valides sur Lenovo:
+      - `output/web-game-pass6/wave_intro.png`
+      - `output/web-game-pass6/levelup_banner.png`
+    - smoke suite agent OK: `output/suites/2026-04-03T19-34-26_pass6-smoke/suite.json`
+    - report run de controle OK: `output/runs/2026-04-03T19-34-26_survivor/report.json`
+- 2026-04-03: Pass pacing + balance early/mid game:
+  - `js/globals.js` remet les stages a `5` waves par defaut pour le build ship, avec override dev possible via `window.HS_DEV_SHORT_STAGE = true`
+  - `js/globals.js` lisse la montee en pression sur les 10 premieres waves:
+    - durees de wave revues
+    - courbes `getDifficulty(...)` dediees early arcade/adventure
+    - mixes d'ennemis reordonnes pour mieux introduire melee, bruisers, supports puis casters
+  - `js/globals.js` ajoute `getXpThreshold(...)` avec une courbe plus douce (`40, 64, 92, ...`) au lieu du vieux scaling exponentiel trop sec
+  - `js/combat.js` utilise maintenant `getXpThreshold(...)` au level-up et retarde l'arrivee/poids des elites en early waves
+  - `js/game.js` initialise correctement `xpNext` depuis la courbe d'XP et applique la meme pente d'elite chance sur le spawn runtime principal
+  - validations:
+    - `node --check` OK sur `js/globals.js`, `js/combat.js`, `js/game.js` en local puis sur Lenovo
+    - smoke suite baseline vs candidate:
+      - base `output/suites/2026-04-03T19-34-26_pass6-smoke/suite.json`
+      - candidate `output/suites/2026-04-03T19-42-59_pass7-smoke/suite.json`
+      - verdict `PASS clear upgrade`
+      - `overall 53 -> 65`
+      - `wave 1 -> 2`
+      - `kills 18 -> 23`
+      - `pace 33 -> 53`
+      - `risk 20 -> 16`
+    - report candidat: `output/runs/2026-04-03T19-42-59_survivor/report.json`
+      - progression validee: `level_reached = 2`, `upgradeCount = 1`, unlock `Shotgun`
+    - check navigateur adventure cible:
+      - `window.WAVES_PER_STAGE = 5`
+      - HUD `STAGE 1 — 1/5`
+- 2026-04-03: Pass boss tuning final:
+  - `js/globals.js` ajoute une table `BOSS_FIGHT_TUNING` et des helpers `getBossFightTuning(...)` / `getBossHpScale(...)` pour piloter HP, intro, seuil phase 2 et cadence par boss
+  - `js/combat.js` branche ce tuning directement dans `Boss`:
+    - HP max derives du boss + wave via `getBossHpScale(...)`
+    - cooldowns distincts pour premier cast, phase 1, phase 2 et phase break
+    - recoveries specifiques sur les patterns les plus oppressifs
+  - premier boss Murad est volontairement moins spongey et moins punitif en ouverture:
+    - `shillstorm` plus lent et moins violent en phase 1
+    - `cultcircle` avec windup, vitesse de dash et radius adoucis avant la phase 2
+    - `bitconnect` a un gap plus lisible et moins de projectiles en phase 1
+    - `referral` invoque moins et plus faible avant l'escalade
+  - `startBossIntro()` lit maintenant le timing d'intro par boss et `startBoss()` donne une micro-fenetre d'invulnerabilite a Jeff pour eviter l'ouverture injuste
+  - validations:
+    - `node --check` OK sur `js/globals.js` et `js/combat.js` en local puis sur Lenovo
+    - client Playwright du skill execute sur une page boss auto-start; capture headless encore blanche dans cet environnement, sans nouvelle erreur hors les `404` preexistants
+    - capture ciblee canvas valide sur Lenovo:
+      - `output/web-game-pass8-boss/boss_intro.png`
+      - `output/web-game-pass8-boss/boss_live.png`
+      - `output/web-game-pass8-boss/state.json`
+    - etat capture confirme:
+      - `bossKey = murad`
+      - `maxHp = 720`
+      - `phase2Threshold = 0.58`
+      - `introTime = 2.65`
+    - smoke suite standard non ciblee:
+      - `output/suites/2026-04-03T19-54-16_pass8-smoke/suite.json`
+      - run `output/runs/2026-04-03T19-54-16_survivor/report.json`
+      - resultat: mort wave 2 sous forte pression (`overall 39`, `risk 71`), a ne pas sur-interpreter car ce run n'atteint pas le boss et ne couvre donc pas le chemin modifie
+- 2026-04-03: Pass UI/UX cleanup:
+  - `index.html` recompose trois zones:
+    - HUD gameplay en shell a deux niveaux avec segments explicites (`VITALS`, `SURVIVAL/ADVENTURE`, `LEVEL`, `FLOW`, `BANK`) et actions `SHOP / PAUSE`
+    - pause menu en vrai cockpit de run avec recap, brief tactique, loadout, skills et colonne actions
+    - menu principal en layout `hero + operator brief`, avec contexte de mode et panneau `FIELD DATA`
+  - `js/ui.js` met a jour la microcopy HUD (`LIVE FIRE`, `BOSS IN`, `PAUSED`, etc.) et rend `menu-highscores` beaucoup plus utile via un bloc `best run + field data`
+  - `js/game.js` enrichit `renderPauseOverlay()` avec une lecture tactique immediate:
+    - sous-titre de run contextualise
+    - statut `STABLE / PRESSURED / CRITICAL`
+    - directive courte selon HP / boss / combo
+  - `css/style.css` unifie la presentation:
+    - HUD plus lisible et moins "outil debug"
+    - side panel menu pour casser le vide du premier ecran
+    - pause menu plus premium, hiérarchisé et responsive
+  - validations:
+    - `node --check` OK sur `js/ui.js` et `js/game.js` en local puis sur Lenovo
+    - capture menu validee:
+      - `output/web-game-pass9-after/menu.png`
+    - capture pause mock validee:
+      - `output/web-game-pass9-pause/pause_mock.png`
+    - run agent reel OK:
+      - `output/suites/2026-04-03T20-28-32_pass9-smoke/suite.json`
+      - `output/runs/2026-04-03T20-28-32_survivor/report.json`
+      - resultat: survived, `wave=3`, `kills=86`, `overall=87`, `pace=95`, `risk=22`
+      - screenshot gameplay utile:
+        - `output/runs/2026-04-03T20-28-32_survivor/screenshots/t15s_wave1.png`
+    - client Playwright du skill execute sur la build tunnelisee; sortie artefactee/non rangee proprement dans cette session, donc la validation visuelle finale s'est appuyee sur les captures ciblees ci-dessus
+- 2026-04-03: Narrative / media pivot:
+  - cap produit valide: Jeff reste le protagoniste principal, les 10 boss existants deviennent des figures stylisees mais clairement reconnaissables d'energies/personnages reels de l'ecosysteme
+  - un document maitre de production a ete prepare pour la phase 7 jours:
+    - `docs/narrative-production-master-plan.md`
+  - ce document fixe:
+    - l'arc narratif global
+    - les identity sheets des 10 boss
+    - la liste d'assets video/audio
+    - les hooks code a reutiliser
+    - l'ordre de generation et l'ordre d'integration
+    - le sprint 7 jours
+- 2026-04-03: Pass media runtime v1:
+  - ajout d'un `MediaDirector` leger (`js/mediaDirector.js`) branche sur les hooks existants plutot qu'une refonte du moteur:
+    - opening Jeff pilote via `#cinematic-overlay`
+    - intros boss narratives enrichies via `#boss-intro`
+    - reprise musique de run sur les transitions de vague
+    - stings de boss / victoire / defaite centralises
+  - `js/globals.js` porte maintenant la data narrative runtime:
+    - `OPENING_MEDIA` pour Jeff (`JEFF VS THE SYSTEM`, lignes d'ouverture, accents)
+    - `BOSS_MEDIA` pour les 10 bosses avec `kicker`, `domain`, `entryLine`, `deathLine`, `chips`, `palette`
+  - `index.html` et `css/style.css` ont ete etendus pour afficher une vraie couche opening:
+    - `#cinematic-kicker`
+    - `#cinematic-title`
+    - `#cinematic-subtitle`
+    - `#cinematic-line`
+    - nouvelle carte boss intro plus lisible avec domaine, tagline et chips
+  - `js/game.js` ne hardcode plus la vieille intro video:
+    - `playCinematic()` delegue au `MediaDirector`
+    - `startGame()` et `devStartAtStage()` reappliquent bien les settings audio apres `initAudio()`
+    - `_doStartWave()` relance enfin la musique de run
+    - `nextWaveAfterBoss()` montre aussi la `deathLine` du boss dans le banner
+  - `js/combat.js` remplace le placeholder audio de mort dans `startBossIntro()` par le rendu narratif boss reel, puis relance la phase combat via `MediaDirector.enterBossCombat(...)`
+  - `js/audio.js` corrige le rebranchage des volumes sauvegardes et ajoute:
+    - `playOpeningSting()`
+    - `playBossSting(bossKey, variant)`
+    - `playEndingSting(kind)`
+  - validations:
+    - `node --check` OK en local et sur Lenovo pour `js/audio.js`, `js/globals.js`, `js/mediaDirector.js`, `js/combat.js`, `js/game.js`, `js/ui.js`
+    - client Playwright du skill execute via tunnel local sur la build Lenovo:
+      - capture menu confirmee: `output-opening/shot-0.png`
+      - le click selector du skill reste capricieux sur le menu; la validation opening/boss a donc ete completee avec Playwright cote Lenovo
+    - captures Lenovo utiles:
+      - opening Jeff: `output/web-game-pass10-media/opening_live.png`
+      - etat opening: `output/web-game-pass10-media/opening_state.json`
+      - Murad ident: `output/web-game-pass10-media/murad_intro.png`
+      - etat Murad: `output/web-game-pass10-media/murad_state.json`
+    - smoke run agent reel OK:
+      - `output/runs/2026-04-03T21-30-28_survivor/report.json`
+      - resultat: survived, `wave=2`, `kills=22`, `overall=65`, `risk=10`
+  - points a reprendre ensuite:
+    - brancher de vrais assets video/audio par boss au lieu du runtime synth/styled overlay
+    - stabiliser les captures automatiques Carlos/Ape dans le helper Playwright Lenovo
+    - ajouter l'outro victoire/defaite video sur la meme couche `MediaDirector`
+- 2026-04-04: Pass media asset-first v2:
+  - `js/globals.js` passe la couche media en mode asset-backed avec fallback:
+    - `OPENING_MEDIA.videoCandidates` cible maintenant les vraies videos existantes
+    - `OPENING_MEDIA.musicCandidates` et `STAGE_MEDIA` pointent sur `assets/Neon Chaser - Google Gemini.mp3`
+    - `ENDING_MEDIA` et `BOSS_MEDIA` portent maintenant des tableaux `*Candidates` prets pour les futurs drops par boss
+  - `js/audio.js` ajoute une vraie piste musique asset HTML5/WebAudio:
+    - `playMusicAsset(...)`
+    - `stopMusicAsset(...)`
+    - `hasActiveAssetMusic()`
+    - `getActiveAssetMusicSrc()`
+    - la musique procedurale est maintenant stoppee proprement avant de lancer un asset
+  - `js/mediaDirector.js` devient asset-first:
+    - resolution defensive du premier asset existant via `resolveFirstAsset(...)`
+    - opening Jeff pilotee par video + MP3 reels si presents, sinon fallback sting
+    - reprise de vague et entree en combat boss tentent d'abord les vrais assets avant la synthese runtime
+    - endings prepares sur la meme couche overlay
+  - `server.js` sert maintenant correctement les extensions `.mp3`, `.ogg`, `.wav`, `.m4a`, `.webm`
+  - `index.html` remplace les `alert()` runtime globales par un reporter non bloquant:
+    - erreurs stockees dans `window.__HS_RUNTIME_ERRORS`
+    - alertes seulement si `?debugAlerts=1` ou `localStorage.hsDebugAlerts=1`
+    - objectif: eviter qu'une modale bloque les validations Playwright futures
+  - validations:
+    - `node --check` OK sur `js/audio.js`, `js/globals.js`, `js/mediaDirector.js`, `server.js`
+    - repro Playwright direct Lenovo OK:
+      - `startGame('adventure')` lance bien l'opening
+      - `#cinematic-overlay` visible
+      - `getActiveAssetMusicSrc()` retourne `assets/Neon%20Chaser%20-%20Google%20Gemini.mp3`
+      - screenshot de probe ecrite sur `/tmp/hs_pass11_probe.png`
+    - smoke run agent reel OK:
+      - `output/runs/2026-04-04T06-29-49_survivor/report.json`
+      - resultat: survived, `wave=1`, `kills=9`, `overall=50`
+  - points a reprendre ensuite:
+    - remplacer les placeholders `identVideoCandidates` boss par les vrais rendus Seedance des qu'ils existent
+    - ajouter les vraies loops/stings boss dans `assets/audio/` pour Murad, Carlos, Ape en premier
+    - brancher les endings video/audio definitifs sur `ENDING_MEDIA`
+  - note de validation additionnelle:
+    - le client Playwright du skill capture bien l'opening avec un clic coordonnees sur la carte Adventure (`output-skill-pass11c/shot-0.png`)
+    - son helper `clickSelector` reste capricieux sur `#btn-adventure`
+    - la capture multi-shot est encore coupee par des `404` preexistants sur des frames ennemies optionnelles (`assets/enemies/...`), pas par la nouvelle couche media
+- 2026-04-04: Pass media transitions v2:
+  - `js/audio.js` ajoute un vrai control de volume narratif:
+    - `duckMusic(target, fadeMs)`
+    - `restoreMusicGain(fadeMs)`
+    - `setMusicGainLevel(target, fadeMs)`
+    - `stopMusic()` nettoie aussi l'etat de duck pour eviter un retour de cutscene trop sombre
+  - `js/globals.js` porte maintenant des profils plus coherents pour l'ouverture, les stages, les bosses et les endings:
+    - `OPENING_MEDIA` et `ENDING_MEDIA` ont des niveaux musicaux explicites
+    - `getNarrativeTransitionProfile(...)` expose les timings de transition (duck, fade, hold, video lead)
+    - `getBossMediaProfile(...)` fournit aussi un niveau musical boss plus lisible
+  - `js/mediaDirector.js` enchaine mieux les moments narratifs:
+    - opening avec video lead + musique duckee puis restore a la fin
+    - boss ident sans coupure brutale du fond, puis restore au passage en combat
+    - beginWave / enterBossCombat reajustent le niveau apres le switch d'asset
+    - endings reutilisent la meme logique de card cinematic pour rester coherents avec l'ouverture
+  - validations:
+    - `node --check` OK sur `js/globals.js`, `js/audio.js`, `js/mediaDirector.js`
+    - synchro Lenovo OK sur les trois fichiers
+  - points restants:
+    - remplacer les placeholders `identVideoCandidates` et `stings` par les vrais assets Seedance/Udio quand ils seront produits
+    - brancher la meme logique media sur les futurs trailers / attract mode si on veut la re-utiliser hors run
+  - hygiene release:
+    - `server.js` repond maintenant proprement aux requetes `HEAD` et ajoute des headers anti-cache / anti-faux-positifs (`Cache-Control: no-store`, `X-Content-Type-Options: nosniff`)
+    - les `404` connus sont consideres non bloquants pour la validation:
+      - `assets/enemies/bat/walk/south/frame_000.png`, `frame_002.png`, `frame_004.png`, `frame_005.png`
+      - `assets/enemies/crab/hit/east/*`
+      - `assets/enemies/crab/hit/west/*`
+      - `assets/enemies/crab/hit/south-east/*`
+    - ces 404 viennent d’assets optionnels / variantes de frames, pas du nouveau flow media

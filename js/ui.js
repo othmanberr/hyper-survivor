@@ -11,7 +11,13 @@ function updateHUD() {
     if (DOM.lvl) DOM.lvl.textContent = `LV ${P.level}`;
     const hpState = hpTarget <= 30 ? 'critical' : hpTarget <= 68 ? 'bruised' : 'stable';
     if (DOM.hpState) DOM.hpState.textContent = hpState.toUpperCase();
-    if (DOM.hudShell) DOM.hudShell.dataset.hpState = hpState;
+    if (DOM.hudShell) {
+        let combatMode = 'run';
+        if (G.phase === 'boss' || G.phase === 'bossIntro') combatMode = 'boss';
+        else if (G.phase === 'wave' || G.phase === 'waveIntro') combatMode = 'live';
+        DOM.hudShell.dataset.hpState = hpState;
+        DOM.hudShell.dataset.combatMode = combatMode;
+    }
 
     // Lerp XP bar
     const xpTarget = Math.min(100, P.xp / P.xpNext * 100);
@@ -21,6 +27,16 @@ function updateHUD() {
     if (DOM.xpMeta) DOM.xpMeta.textContent = `${Math.floor(P.xp)} / ${P.xpNext} XP`;
     if (DOM.hudModeKicker) DOM.hudModeKicker.textContent = G.mode === 'arcade' ? 'SURVIVAL' : 'ADVENTURE';
     if (DOM.hudKillCornerVal) DOM.hudKillCornerVal.textContent = G.kills;
+    if (DOM.hudFlowState) {
+        let flowLabel = 'STANDBY';
+        if (G.phase === 'wave') flowLabel = 'LIVE FIRE';
+        else if (G.phase === 'waveIntro') flowLabel = 'INBOUND';
+        else if (G.phase === 'boss') flowLabel = 'BOSS LIVE';
+        else if (G.phase === 'bossIntro') flowLabel = 'BOSS IN';
+        else if (G.phase === 'milestone') flowLabel = 'REWARD';
+        else if (G.phase === 'paused') flowLabel = 'PAUSED';
+        DOM.hudFlowState.textContent = flowLabel;
+    }
 
     if (G.mode === 'arcade') {
         DOM.stageInfo.textContent = `WAVE ${G.wave}/100`;
@@ -193,6 +209,7 @@ function calculateRank() {
 function gameOver() {
     G.phase = 'gameover';
     if (typeof stopMusic === 'function') stopMusic();
+    if (window.MediaDirector && typeof MediaDirector.playEnding === 'function') MediaDirector.playEnding('defeat');
     saveHighscore();
     if (typeof clearDamageFlash === 'function') clearDamageFlash();
 
@@ -229,6 +246,7 @@ function gameOver() {
 function victory() {
     G.phase = 'victory';
     if (typeof stopMusic === 'function') stopMusic();
+    if (window.MediaDirector && typeof MediaDirector.playEnding === 'function') MediaDirector.playEnding('victory');
     // Start victory dance celebration
     if (typeof startVictoryDance === 'function') startVictoryDance();
 
@@ -395,23 +413,71 @@ function updateMenuHighscores() {
     const scores = getHighscores();
     const stats = getLifetimeStats();
     if (scores.length === 0 && !stats.totalGames) {
-        container.innerHTML = '';
+        container.innerHTML = `
+      <div class="hs-shell hs-shell-empty">
+        <div class="hs-topline">
+          <div class="hs-title">FIELD DATA</div>
+          <div class="hs-chip">fresh build</div>
+        </div>
+        <div class="hs-empty-title">No runs logged yet.</div>
+        <div class="hs-empty-copy">Start with Arcade for quick score pressure tests and direct reruns.</div>
+      </div>
+    `;
         return;
     }
-    let html = '<div class="hs-title">LEADERBOARD</div>';
+    const totalRuns = stats.totalGames || scores.length;
+    let html = `
+    <div class="hs-shell">
+      <div class="hs-topline">
+        <div class="hs-title">FIELD DATA</div>
+        <div class="hs-chip">${totalRuns} run${totalRuns > 1 ? 's' : ''}</div>
+      </div>
+  `;
+    if (scores.length > 0) {
+        const best = scores[0];
+        const bestTime = typeof formatTime === 'function' ? formatTime(best.time) : best.time;
+        html += `
+      <div class="hs-hero">
+        <div class="hs-hero-label">BEST RUN</div>
+        <div class="hs-hero-main">W${best.wave}</div>
+        <div class="hs-hero-sub">${best.kills} kills · ${bestTime} · ${best.mode || 'run'}</div>
+      </div>
+    `;
+    }
+    if (stats.totalGames) {
+        const totalTime = typeof formatTime === 'function' ? formatTime(stats.totalTime) : stats.totalTime;
+        html += `
+      <div class="hs-stat-grid">
+        <div class="hs-stat-card">
+          <span class="hs-stat-val">${stats.bestWave || 0}</span>
+          <span class="hs-stat-lbl">Best Wave</span>
+        </div>
+        <div class="hs-stat-card">
+          <span class="hs-stat-val">${stats.bestCombo || 0}x</span>
+          <span class="hs-stat-lbl">Best Combo</span>
+        </div>
+        <div class="hs-stat-card">
+          <span class="hs-stat-val">${stats.totalKills || 0}</span>
+          <span class="hs-stat-lbl">Total Kills</span>
+        </div>
+        <div class="hs-stat-card">
+          <span class="hs-stat-val">${totalTime}</span>
+          <span class="hs-stat-lbl">Time Logged</span>
+        </div>
+      </div>
+    `;
+    }
     if (scores.length > 0) {
         html += '<div class="hs-list">';
         const ico = typeof ICO !== 'undefined' ? ICO : { medal1: '🥇', medal2: '🥈', medal3: '🥉' };
-        scores.slice(0, 5).forEach((s, i) => {
+        scores.slice(0, 3).forEach((s, i) => {
             const medal = i === 0 ? ico.medal1 : i === 1 ? ico.medal2 : i === 2 ? ico.medal3 : `#${i + 1}`;
             const t = typeof formatTime === 'function' ? formatTime(s.time) : s.time;
             html += `<div class="hs-row"><span class="hs-medal">${medal}</span><span class="hs-wave">W${s.wave}</span><span class="hs-kills">${s.kills}K</span><span class="hs-time">${t}</span></div>`;
         });
         html += '</div>';
     }
-    if (stats.totalGames) {
-        html += `<div class="hs-stats">${stats.totalGames} runs · ${stats.totalKills || 0} total kills · Best W${stats.bestWave || 0}</div>`;
-    }
+    html += '</div>';
     container.innerHTML = html;
 }
 
@@ -496,9 +562,7 @@ const Leaderboard = (() => {
 })();
 
 // ============ SETTINGS ============
-let dmgNumbersEnabled = true;
-
-const SETTINGS_DEFAULTS = { masterVol: 50, sfxVol: 60, musicVol: 30, radioVol: 50, shakeEnabled: true, dmgNumbersEnabled: true };
+const SETTINGS_DEFAULTS = { sfxVol: 60, musicVol: 30 };
 
 function loadSettings() {
     let s = SETTINGS_DEFAULTS;
@@ -507,49 +571,25 @@ function loadSettings() {
         if (raw) s = Object.assign({}, SETTINGS_DEFAULTS, JSON.parse(raw));
     } catch (e) { }
     // Apply audio
-    if (typeof masterGain !== 'undefined' && masterGain) masterGain.gain.value = s.masterVol / 100;
     if (typeof sfxGain !== 'undefined' && sfxGain) sfxGain.gain.value = s.sfxVol / 100;
     if (typeof musicGain !== 'undefined' && musicGain) musicGain.gain.value = s.musicVol / 100;
-    if (typeof setRadioVolume === 'function') setRadioVolume(s.radioVol / 100);
+    // Hard-disable removed gameplay effects.
+    window.shakeEnabled = false;
+    window.dmgNumbersEnabled = false;
 
-    window.shakeEnabled = typeof window.shakeEnabled !== 'undefined' ? s.shakeEnabled : true;
-    window.dmgNumbersEnabled = s.dmgNumbersEnabled;
-
-    const mEl = document.getElementById('set-master'); if (mEl) mEl.value = s.masterVol;
-    const mvEl = document.getElementById('set-master-val'); if (mvEl) mvEl.textContent = s.masterVol;
     const sEl = document.getElementById('set-sfx'); if (sEl) sEl.value = s.sfxVol;
     const svEl = document.getElementById('set-sfx-val'); if (svEl) svEl.textContent = s.sfxVol;
     const muEl = document.getElementById('set-music'); if (muEl) muEl.value = s.musicVol;
     const muvEl = document.getElementById('set-music-val'); if (muvEl) muvEl.textContent = s.musicVol;
-    const radEl = document.getElementById('set-radio'); if (radEl) radEl.value = s.radioVol;
-    const radvEl = document.getElementById('set-radio-val'); if (radvEl) radvEl.textContent = s.radioVol;
-
-    const shakeBtn = document.getElementById('set-shake');
-    if (shakeBtn) {
-        shakeBtn.textContent = s.shakeEnabled ? 'ON' : 'OFF';
-        shakeBtn.className = 'settings-toggle ' + (s.shakeEnabled ? 'on' : 'off');
-    }
-
-    const dmgBtn = document.getElementById('set-dmgnums');
-    if (dmgBtn) {
-        dmgBtn.textContent = s.dmgNumbersEnabled ? 'ON' : 'OFF';
-        dmgBtn.className = 'settings-toggle ' + (s.dmgNumbersEnabled ? 'on' : 'off');
-    }
 }
 
 function saveSettings() {
-    const mEl = document.getElementById('set-master');
     const sEl = document.getElementById('set-sfx');
     const muEl = document.getElementById('set-music');
-    const rEl = document.getElementById('set-radio');
 
     const s = {
-        masterVol: mEl ? parseInt(mEl.value) : SETTINGS_DEFAULTS.masterVol,
         sfxVol: sEl ? parseInt(sEl.value) : SETTINGS_DEFAULTS.sfxVol,
-        musicVol: muEl ? parseInt(muEl.value) : SETTINGS_DEFAULTS.musicVol,
-        radioVol: rEl ? parseInt(rEl.value) : SETTINGS_DEFAULTS.radioVol,
-        shakeEnabled: window.shakeEnabled !== undefined ? window.shakeEnabled : true,
-        dmgNumbersEnabled: window.dmgNumbersEnabled !== undefined ? window.dmgNumbersEnabled : true
+        musicVol: muEl ? parseInt(muEl.value) : SETTINGS_DEFAULTS.musicVol
     };
     try { localStorage.setItem('hl_survivor_settings', JSON.stringify(s)); } catch (e) { }
 }
@@ -607,10 +647,8 @@ function _wireSettings() {
 
     // Volume sliders
     const sliders = [
-        { id: 'set-master', valId: 'set-master-val', gain: () => typeof masterGain !== 'undefined' ? masterGain : null },
         { id: 'set-sfx', valId: 'set-sfx-val', gain: () => typeof sfxGain !== 'undefined' ? sfxGain : null },
-        { id: 'set-music', valId: 'set-music-val', gain: () => typeof musicGain !== 'undefined' ? musicGain : null },
-        { id: 'set-radio', valId: 'set-radio-val', gain: null, radio: true }
+        { id: 'set-music', valId: 'set-music-val', gain: () => typeof musicGain !== 'undefined' ? musicGain : null }
     ];
 
     sliders.forEach(s => {
@@ -620,36 +658,11 @@ function _wireSettings() {
         slider.addEventListener('input', () => {
             const v = parseInt(slider.value);
             if (valEl) valEl.textContent = v;
-            if (s.radio) {
-                if (typeof setRadioVolume === 'function') setRadioVolume(v / 100);
-            } else {
-                const g = s.gain();
-                if (g) g.gain.value = v / 100;
-            }
+            const g = s.gain();
+            if (g) g.gain.value = v / 100;
             saveSettings();
         });
     });
-
-    // Toggle buttons
-    const shakeBtn = document.getElementById('set-shake');
-    if (shakeBtn) {
-        shakeBtn.addEventListener('click', () => {
-            window.shakeEnabled = !window.shakeEnabled;
-            shakeBtn.textContent = window.shakeEnabled ? 'ON' : 'OFF';
-            shakeBtn.className = 'settings-toggle ' + (window.shakeEnabled ? 'on' : 'off');
-            saveSettings();
-        });
-    }
-
-    const dmgBtn = document.getElementById('set-dmgnums');
-    if (dmgBtn) {
-        dmgBtn.addEventListener('click', () => {
-            window.dmgNumbersEnabled = !window.dmgNumbersEnabled;
-            dmgBtn.textContent = window.dmgNumbersEnabled ? 'ON' : 'OFF';
-            dmgBtn.className = 'settings-toggle ' + (window.dmgNumbersEnabled ? 'on' : 'off');
-            saveSettings();
-        });
-    }
 
     // Load saved settings on init
     loadSettings();

@@ -23,6 +23,30 @@ function particleColorWithAlpha(color, alpha) {
   return color;
 }
 
+function clampFx01(value) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function getCombatFxPalette() {
+  if (typeof STAGE_PALETTES !== 'undefined' && Array.isArray(STAGE_PALETTES) && STAGE_PALETTES.length) {
+    const stage = typeof G !== 'undefined' && Number.isFinite(G.stage) ? G.stage : 0;
+    return STAGE_PALETTES[Math.max(0, Math.min(STAGE_PALETTES.length - 1, stage))] || STAGE_PALETTES[0];
+  }
+  return { accent: '#00f5ff', secondary: '#ffffff' };
+}
+
+function getCombatFxBoost() {
+  const combo = typeof G !== 'undefined' ? clampFx01((G.combo || 0) / 45) : 0;
+  const leverage = typeof P !== 'undefined' ? clampFx01(((P.leverage || 1) - 1) / 18) : 0;
+  const boss = typeof G !== 'undefined' && G.phase === 'boss' ? 0.2 : 0;
+  return {
+    combo,
+    leverage,
+    boss,
+    total: clampFx01(combo * 0.6 + leverage * 0.25 + boss)
+  };
+}
+
 function spawnParticles(x, y, count, config) {
   for (let i = 0; i < count && particles.length < MAX_PARTICLES; i++) {
     const angle = config.angle !== undefined
@@ -122,17 +146,152 @@ function drawParticles(ctx) {
 }
 
 // Preset particle effects
-function fxEnemyDeath(x, y, color) {
-  // Simple puff — just 4 small fading sparks
-  spawnParticles(x, y, 4, {
-    speed: 40, speedVar: 30,
-    life: 0.2, size: 3, sizeEnd: 0,
-    colors: [color || '#ff4444', '#fff'],
-    friction: 0.88, shape: 'circle',
+function fxEnemyDeath(x, y, color, opts) {
+  opts = opts || {};
+  const pal = getCombatFxPalette();
+  const boost = getCombatFxBoost();
+  const elite = !!opts.elite;
+  const combo = Number.isFinite(opts.combo)
+    ? opts.combo
+    : (typeof G !== 'undefined' ? (G.combo || 0) : 0);
+  const burstCount = elite ? 16 : 7 + Math.round(boost.total * 7);
+  const sparkColors = [
+    color || '#ff4444',
+    pal.accent,
+    pal.secondary,
+    '#ffffff'
+  ];
+
+  spawnParticles(x, y, burstCount, {
+    speed: elite ? 165 : 105 + boost.total * 80,
+    speedVar: elite ? 110 : 70,
+    life: elite ? 0.44 : 0.28 + boost.total * 0.08,
+    size: elite ? 4.6 : 3.4,
+    sizeEnd: 0,
+    colors: sparkColors,
+    friction: 0.88,
+    shape: 'spark',
   });
+
+  spawnParticles(x, y, elite ? 7 : 3 + Math.round(boost.combo * 4), {
+    speed: 48 + boost.total * 36,
+    speedVar: 22,
+    life: 0.22 + boost.total * 0.08,
+    size: elite ? 6 : 4,
+    sizeEnd: 0,
+    colors: [
+      particleColorWithAlpha(color || pal.accent, elite ? 0.55 : 0.45),
+      particleColorWithAlpha('#ffffff', 0.35),
+    ],
+    friction: 0.9,
+    gravity: -35,
+    shape: 'circle',
+  });
+
+  spawnParticles(x, y, 1, {
+    speed: 0,
+    life: elite ? 0.22 : 0.14,
+    size: elite ? 13 : 9,
+    sizeEnd: elite ? 34 : 24,
+    color: particleColorWithAlpha(elite ? pal.secondary : color || pal.accent, elite ? 0.34 : 0.24),
+    shape: 'ring',
+    thickness: elite ? 3.2 : 2.1,
+  });
+
+  if (elite || combo >= 15) {
+    spawnParticles(x, y, elite ? 6 : 3, {
+      speed: elite ? 140 : 95,
+      speedVar: 45,
+      life: elite ? 0.24 : 0.18,
+      size: 1,
+      sizeEnd: 1,
+      colors: [pal.secondary, '#ffffff', color || pal.accent],
+      length: elite ? 28 : 20,
+      lengthEnd: 6,
+      thickness: elite ? 3 : 2,
+      shape: 'line',
+    });
+  }
+
+  if (elite) {
+    spawnParticles(x, y, 1, {
+      speed: 0,
+      life: 0.16,
+      size: 18,
+      sizeEnd: 46,
+      color: particleColorWithAlpha(pal.accent, 0.09),
+      shape: 'circle',
+    });
+  }
+}
+
+function fxEnemyRewardBurst(x, y, opts) {
+  opts = opts || {};
+  const pal = getCombatFxPalette();
+  const gold = Math.max(0, opts.gold || 0);
+  const xp = Math.max(0, opts.xp || 0);
+  const elite = !!opts.elite;
+  const towardPlayer = typeof P !== 'undefined'
+    ? Math.atan2(P.y - y, P.x - x)
+    : -Math.PI / 2;
+
+  const goldCount = gold > 0 ? Math.min(elite ? 6 : 4, 1 + Math.round(gold / 12)) : 0;
+  if (goldCount > 0) {
+    spawnParticles(x, y, goldCount, {
+      angle: towardPlayer,
+      spread: elite ? 1.15 : 1.45,
+      speed: elite ? 125 : 92,
+      speedVar: elite ? 45 : 34,
+      life: elite ? 0.42 : 0.3,
+      size: elite ? 4.4 : 3.2,
+      sizeEnd: 0.8,
+      colors: ['#ffd54f', '#fff2a3', '#ffffff'],
+      friction: 0.9,
+      gravity: 26,
+      shape: 'square',
+      rotation: Math.random() * Math.PI * 2,
+      spin: (Math.random() - 0.5) * 10,
+    });
+  }
+
+  const xpCount = xp > 0 ? Math.min(elite ? 5 : 3, 1 + Math.round(xp / 10)) : 0;
+  if (xpCount > 0) {
+    spawnParticles(x, y, xpCount, {
+      angle: towardPlayer,
+      spread: elite ? 1.1 : 1.35,
+      speed: elite ? 118 : 88,
+      speedVar: elite ? 40 : 30,
+      life: elite ? 0.38 : 0.28,
+      size: elite ? 4 : 3,
+      sizeEnd: 0.6,
+      colors: ['#55efc4', '#00f5d4', pal.secondary],
+      friction: 0.9,
+      gravity: -10,
+      shape: 'circle',
+    });
+  }
+
+  if (elite || gold + xp >= 18) {
+    spawnParticles(x, y, elite ? 4 : 2, {
+      angle: towardPlayer,
+      spread: 0.55,
+      speed: elite ? 150 : 112,
+      speedVar: 28,
+      life: elite ? 0.22 : 0.18,
+      size: 1,
+      sizeEnd: 1,
+      colors: ['#ffffff', '#ffe680', '#7dffda'],
+      rotation: towardPlayer,
+      length: elite ? 30 : 22,
+      lengthEnd: 6,
+      thickness: elite ? 3 : 2,
+      shape: 'line',
+    });
+  }
 }
 
 function fxBossDeath(x, y) {
+  const pal = getCombatFxPalette();
   for (let w = 0; w < 4; w++) {
     setTimeout(() => {
       spawnParticles(
@@ -141,24 +300,184 @@ function fxBossDeath(x, y) {
         25, {
         speed: 200, speedVar: 150,
         life: 0.6, size: 6, sizeEnd: 0,
-        colors: ['#ffd700', '#ff6600', '#ff3333', '#fff'],
+        colors: ['#ffd700', pal.accent, pal.secondary, '#ff6600', '#ff3333', '#fff'],
         friction: 0.9, shape: 'spark',
       }
       );
     }, w * 100);
   }
+  spawnParticles(x, y, 1, {
+    speed: 0,
+    life: 0.4,
+    size: 32,
+    sizeEnd: 100,
+    color: particleColorWithAlpha(pal.accent, 0.14),
+    shape: 'ring',
+    thickness: 4,
+  });
+}
+
+function fxBossAttackCue(x, y, accent, secondary, kind, phase2) {
+  const primary = accent || '#ff7755';
+  const alt = secondary || '#ffffff';
+  const sizeBoost = phase2 ? 1.18 : 1;
+  spawnParticles(x, y, phase2 ? 12 : 8, {
+    speed: 70 * sizeBoost,
+    speedVar: 38,
+    life: 0.34,
+    size: 4.2,
+    sizeEnd: 0,
+    colors: [primary, alt, '#ffffff'],
+    friction: 0.88,
+    shape: kind === 'portal' || kind === 'shield' ? 'square' : 'spark',
+    spin: kind === 'portal' ? 6 : 0,
+  });
+  spawnParticles(x, y, 1, {
+    speed: 0,
+    life: 0.2,
+    size: 16 * sizeBoost,
+    sizeEnd: 42 * sizeBoost,
+    color: particleColorWithAlpha(primary, 0.26),
+    shape: 'ring',
+    thickness: kind === 'beam' || kind === 'shield' ? 4 : 3,
+  });
+  if (kind === 'beam' || kind === 'dash' || kind === 'wall') {
+    spawnParticles(x, y, phase2 ? 6 : 4, {
+      speed: 22,
+      speedVar: 8,
+      life: 0.18,
+      size: 1,
+      sizeEnd: 1,
+      colors: [alt, primary],
+      length: kind === 'beam' ? 30 : 24,
+      lengthEnd: 8,
+      thickness: 2.5,
+      shape: 'line',
+    });
+  }
+  if (kind === 'ring' || kind === 'cascade' || kind === 'burst') {
+    spawnParticles(x, y, 1, {
+      speed: 0,
+      life: 0.12,
+      size: 8,
+      sizeEnd: 24 * sizeBoost,
+      color: particleColorWithAlpha(alt, 0.22),
+      shape: 'circle',
+    });
+  }
+}
+
+function fxBossAttackImpact(x, y, accent, secondary, kind, phase2) {
+  const primary = accent || '#ff7755';
+  const alt = secondary || '#ffffff';
+  const radius = (phase2 ? 72 : 56)
+    + (kind === 'dash' ? 18 : 0)
+    + (kind === 'ring' ? 10 : 0);
+  spawnParticles(x, y, phase2 ? 18 : 12, {
+    speed: radius * 2.2,
+    speedVar: radius * 0.7,
+    life: 0.3,
+    size: 5,
+    sizeEnd: 0,
+    colors: [primary, alt, '#ffffff'],
+    friction: 0.88,
+    shape: 'spark',
+  });
+  spawnParticles(x, y, 1, {
+    speed: 0,
+    life: 0.18,
+    size: 14,
+    sizeEnd: radius,
+    color: particleColorWithAlpha(primary, 0.26),
+    shape: 'ring',
+    thickness: 5,
+  });
+  spawnParticles(x, y, phase2 ? 10 : 6, {
+    speed: radius * 0.9,
+    speedVar: radius * 0.35,
+    life: 0.36,
+    size: 3.6,
+    sizeEnd: 1,
+    colors: ['#666666', primary, alt],
+    gravity: 180,
+    friction: 0.92,
+    shape: kind === 'portal' || kind === 'shield' ? 'square' : 'circle',
+    bounce: 0.18,
+    groundY: y + 18 + Math.random() * 18,
+    rotation: Math.random() * Math.PI * 2,
+    spin: (Math.random() - 0.5) * 10,
+  });
 }
 
 function fxCritical(x, y) {
   // Disabled to improve performance during heavy combat
 }
 
-function fxPlayerHit(x, y) {
-  spawnParticles(x, y, 10, {
-    speed: 80, speedVar: 40,
-    life: 0.3, size: 3, sizeEnd: 0,
-    colors: ['#ff0000', '#ff4444', '#ff8888'],
-    friction: 0.95, shape: 'circle',
+function fxPlayerHit(x, y, opts) {
+  const pal = getCombatFxPalette();
+  const hpRatio = typeof P !== 'undefined' && P.maxHp > 0 ? P.hp / P.maxHp : 1;
+  const danger = clampFx01(opts && Number.isFinite(opts.danger) ? opts.danger : (0.45 - hpRatio) / 0.45);
+  const intensity = clampFx01(((opts && opts.intensity) || 0.7) / 1.25);
+  const dirX = opts && Number.isFinite(opts.dirX) ? opts.dirX : 0;
+  const dirY = opts && Number.isFinite(opts.dirY) ? opts.dirY : -1;
+  const dirAngle = Math.atan2(dirY, dirX || 0.0001);
+  spawnParticles(x, y, 12 + Math.round(intensity * 6), {
+    speed: 95 + danger * 45 + intensity * 55,
+    speedVar: 48,
+    life: 0.24 + danger * 0.08,
+    size: 3.4 + intensity * 0.8,
+    sizeEnd: 0,
+    colors: ['#ff0000', '#ff4444', '#ff8888', '#ffffff'],
+    friction: 0.93,
+    shape: 'spark',
+  });
+  spawnParticles(x + dirX * 4, y + dirY * 4, 5 + Math.round(intensity * 4), {
+    angle: dirAngle,
+    spread: 0.85,
+    speed: 70 + intensity * 90,
+    speedVar: 28,
+    life: 0.18 + intensity * 0.08,
+    size: 2.4,
+    sizeEnd: 0,
+    colors: ['#ff5f6d', '#ffd4dd', '#ffffff'],
+    friction: 0.9,
+    shape: 'spark',
+  });
+  spawnParticles(x, y, 4, {
+    speed: 36,
+    speedVar: 20,
+    life: 0.16,
+    size: 1,
+    sizeEnd: 1,
+    colors: ['#ffffff', pal.secondary, '#ff8888'],
+    length: 22,
+    lengthEnd: 5,
+    thickness: 2,
+    shape: 'line',
+  });
+  spawnParticles(x - dirX * 3, y - dirY * 3, 2 + Math.round(intensity * 2), {
+    angle: dirAngle + Math.PI,
+    spread: 0.42,
+    speed: 48 + intensity * 28,
+    speedVar: 18,
+    life: 0.14 + intensity * 0.04,
+    size: 1,
+    sizeEnd: 1,
+    colors: ['#ffffff', '#ffdbe2', pal.secondary],
+    rotation: dirAngle + Math.PI,
+    length: 20 + intensity * 10,
+    lengthEnd: 5,
+    thickness: 2,
+    shape: 'line',
+  });
+  spawnParticles(x, y, 1, {
+    speed: 0,
+    life: 0.12 + intensity * 0.04,
+    size: 8 + intensity * 2,
+    sizeEnd: 18 + intensity * 4,
+    color: particleColorWithAlpha(danger > 0.2 ? '#ff4757' : pal.secondary, 0.22),
+    shape: 'ring',
+    thickness: 2,
   });
 }
 
@@ -178,13 +497,59 @@ function fxPlayerDodge(x, y) {
   });
 }
 
-function fxPickup(x, y, type) {
-  const color = type === 'gold' ? '#ffff00' : '#00ff66';
-  spawnParticles(x, y, 5, {
-    speed: 40, speedVar: 20,
-    life: 0.25, size: 2, sizeEnd: 0,
-    color, friction: 0.9, gravity: -80,
+function fxPickup(x, y, type, opts) {
+  opts = opts || {};
+  const pal = getCombatFxPalette();
+  const color = type === 'gold' ? '#ffd700' : type === 'heart' ? '#55efc4' : '#00ff66';
+  const accent = type === 'gold' ? '#fff3a1' : type === 'heart' ? '#d6fff4' : pal.secondary;
+  const amount = Math.max(1, opts.amount || 1);
+  const magnetic = !!opts.magnetic;
+  const burstCount = type === 'heart' ? 9 : type === 'gold' ? 8 : 7;
+  spawnParticles(x, y, burstCount + Math.min(3, Math.floor(amount / 20)), {
+    speed: type === 'heart' ? 58 : 48,
+    speedVar: type === 'gold' ? 30 : 24,
+    life: type === 'heart' ? 0.34 : 0.28,
+    size: type === 'heart' ? 2.8 : 2.4,
+    sizeEnd: 0,
+    colors: [color, accent, '#ffffff'],
+    friction: 0.9,
+    gravity: type === 'heart' ? -110 : -90,
+    shape: type === 'gold' ? 'square' : 'circle',
+    rotation: Math.random() * Math.PI * 2,
+    spin: type === 'gold' ? (Math.random() - 0.5) * 8 : 0,
   });
+  spawnParticles(x, y, type === 'heart' ? 3 : 2, {
+    angle: -Math.PI / 2, spread: 0.3,
+    speed: type === 'gold' ? 90 : 80,
+    speedVar: 25,
+    life: 0.16 + (type === 'heart' ? 0.04 : 0),
+    size: 1,
+    sizeEnd: 1,
+    colors: [accent, '#ffffff'],
+    rotation: -Math.PI / 2,
+    length: 24, lengthEnd: 8, thickness: 2,
+    shape: 'line',
+  });
+  spawnParticles(x, y, 1, {
+    speed: 0,
+    life: type === 'heart' ? 0.16 : 0.1,
+    size: type === 'heart' ? 9 : 7,
+    sizeEnd: type === 'heart' ? 18 : 14,
+    color: particleColorWithAlpha(color, 0.22),
+    shape: 'ring',
+    thickness: type === 'heart' ? 2.4 : 2,
+  });
+  if (type === 'heart' || magnetic) {
+    spawnParticles(x, y, 1, {
+      speed: 0,
+      life: 0.12,
+      size: 4,
+      sizeEnd: type === 'heart' ? 22 : 18,
+      color: particleColorWithAlpha(accent, type === 'heart' ? 0.18 : 0.14),
+      shape: 'ring',
+      thickness: 1.6,
+    });
+  }
 }
 
 function fxMuzzleFlash(x, y, angle) {
@@ -358,7 +723,7 @@ function fxPuddleSplash(x, y) {
 const godCandles = [];
 
 function fxGodCandle(x, y, dmg) {
-  if (typeof dmgNumbersEnabled !== 'undefined' && !dmgNumbersEnabled) return;
+  return;
   const height = 40 + Math.min(dmg * 0.8, 120);
   godCandles.push({
     x, y,

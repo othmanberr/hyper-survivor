@@ -555,6 +555,107 @@ function bossSpawnAddWave(count, types, cx, cy, radius) {
   }
 }
 
+function bossColorWithAlpha(color, alpha) {
+  if (typeof particleColorWithAlpha === 'function') return particleColorWithAlpha(color, alpha);
+  return color;
+}
+
+function bossFormatAttackLabel(id) {
+  return String(id || 'pattern')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .trim()
+    .toUpperCase();
+}
+
+function getBossVisualProfile(bossKey) {
+  const boss = (typeof BOSSES !== 'undefined' && BOSSES[bossKey]) || {};
+  const visual = (typeof BOSS_VISUALS !== 'undefined' && BOSS_VISUALS[bossKey]) || {};
+  return {
+    accent: visual.accent || boss.col || '#ff7755',
+    secondary: visual.secondary || '#ffffff',
+    motif: visual.motif || 'ring',
+    tag: visual.tag || boss.sub || 'BOSS',
+    attacks: visual.attacks || {}
+  };
+}
+
+function getBossAttackTell(bossKey, attackId) {
+  const visual = getBossVisualProfile(bossKey);
+  const data = visual.attacks && visual.attacks[attackId];
+  if (data && typeof data === 'object') {
+    return {
+      label: data.label || bossFormatAttackLabel(attackId),
+      kind: data.kind || 'pattern',
+      duration: data.duration || 0.95,
+      accent: data.accent || visual.accent
+    };
+  }
+  return {
+    label: bossFormatAttackLabel(attackId),
+    kind: 'pattern',
+    duration: 0.95,
+    accent: visual.accent
+  };
+}
+
+function getBossCueSound(kind) {
+  if (kind === 'dash' || kind === 'wall' || kind === 'bombard') return 'bossCharge';
+  if (kind === 'ring' || kind === 'burst' || kind === 'cascade') return 'bossRing';
+  if (kind === 'portal' || kind === 'clone' || kind === 'summon') return 'bossGlitch';
+  if (kind === 'shield') return 'bossShield';
+  return 'bossCharge';
+}
+
+function triggerBossAttackCue(owner, attackId, opts) {
+  if (!owner) return;
+  const meta = getBossAttackTell(owner.key || G.bossKey, attackId);
+  const visual = owner.visual || getBossVisualProfile(owner.key || G.bossKey);
+  const kind = (opts && opts.kind) || meta.kind || 'pattern';
+  if (typeof fxBossAttackCue === 'function') {
+    fxBossAttackCue(owner.x, owner.y, visual.accent, visual.secondary, kind, !!owner.phase2);
+  }
+  if (opts && opts.targetX !== undefined && opts.targetY !== undefined && typeof spawnParticles === 'function') {
+    spawnParticles(opts.targetX, opts.targetY, owner.phase2 ? 6 : 4, {
+      speed: 18,
+      speedVar: 8,
+      life: 0.2,
+      size: 1,
+      sizeEnd: 1,
+      colors: [visual.secondary, visual.accent, '#ffffff'],
+      length: 24,
+      lengthEnd: 8,
+      thickness: 2.5,
+      shape: 'line',
+    });
+    spawnParticles(opts.targetX, opts.targetY, 1, {
+      speed: 0,
+      life: 0.18,
+      size: 10,
+      sizeEnd: Math.max(18, opts.targetRadius || 34),
+      color: bossColorWithAlpha(visual.accent, 0.2),
+      shape: 'ring',
+      thickness: 3,
+    });
+  }
+  const sound = opts && Object.prototype.hasOwnProperty.call(opts, 'sound')
+    ? opts.sound
+    : getBossCueSound(kind);
+  if (sound && typeof playSound === 'function') playSound(sound);
+}
+
+function triggerBossAttackImpact(owner, opts) {
+  if (!owner) return;
+  const visual = owner.visual || getBossVisualProfile(owner.key || G.bossKey);
+  const kind = (opts && opts.kind) || ((owner.intent && owner.intent.kind) || 'pattern');
+  if (typeof fxBossAttackImpact === 'function') {
+    fxBossAttackImpact((opts && opts.x) || owner.x, (opts && opts.y) || owner.y, visual.accent, visual.secondary, kind, !!owner.phase2);
+  } else if (typeof fxExplosion === 'function') {
+    fxExplosion((opts && opts.x) || owner.x, (opts && opts.y) || owner.y, (opts && opts.radius) || 64);
+  }
+  if (typeof playSound === 'function') playSound((opts && opts.sound) || (kind === 'shield' ? 'bossShield' : 'bossSlam'));
+}
+
 // ============ PER-TYPE BEHAVIOR FUNCTIONS ============
 // Each receives (e, dt, dx, dy, ds, edt) where dx/dy/ds = vector to player, edt = dt * speedMult
 // Behaviors now steer toward desired velocities instead of pushing raw forces every frame.
@@ -1133,6 +1234,34 @@ function chooseContinuousSpawnPoint(batchIndex) {
 
 function processNextLevelUp() {
   if (G.pendingLevelUps <= 0) return;
+
+  const choices = typeof generateLevelUpChoices === 'function'
+    ? generateLevelUpChoices(P, WEAPONS, 3)
+    : [];
+  const externalChoice = typeof resolveExternalLevelUpChoice === 'function'
+    ? resolveExternalLevelUpChoice(choices, P)
+    : null;
+  const selectedChoice = externalChoice
+    || (typeof autoPickLevelUpChoice === 'function' ? autoPickLevelUpChoice(choices, P) : choices[0] || null);
+  const selectedIndex = selectedChoice ? choices.findIndex((choice) => choice && choice.id === selectedChoice.id) : -1;
+
+  G.lastLevelUpChoices = Array.isArray(choices) && typeof serializeLevelUpChoice === 'function'
+    ? choices.map((choice, index) => serializeLevelUpChoice(choice, index))
+    : [];
+
+  if (selectedChoice) {
+    if (typeof applyLevelUpChoice === 'function') {
+      applyLevelUpChoice(selectedChoice, P, WEAPONS);
+    }
+    if (selectedChoice.type !== 'evolution' && typeof showAutoLevelUpBanner === 'function') {
+      showAutoLevelUpBanner(selectedChoice);
+    }
+    G.levelUpCounter = (G.levelUpCounter || 0) + 1;
+    G.lastLevelUpChoice = typeof serializeLevelUpChoice === 'function'
+      ? serializeLevelUpChoice(selectedChoice, selectedIndex, G.levelUpCounter)
+      : null;
+  }
+
   G.pendingLevelUps--;
   hideLevelUpUI();
   if (G.pendingLevelUps > 0) {
@@ -1147,7 +1276,8 @@ function addXP(val) {
   P.xp += val;
   while (P.xp >= P.xpNext) {
     P.xp -= P.xpNext; P.level++;
-    P.xpNext = Math.floor(50 * 1.4 ** P.level);
+    G.pendingLevelUps = (G.pendingLevelUps || 0) + 1;
+    P.xpNext = typeof getXpThreshold === 'function' ? getXpThreshold(P.level) : Math.floor(50 * 1.4 ** P.level);
     playSound('levelup');
     addDmgNum({ x: P.x, y: P.y - 40, n: 'LV' + P.level, life: 0.8, col: '#2ed573' });
   }
@@ -1180,8 +1310,22 @@ function enemyDeath(e) {
   addXP(e.xp);
   if (typeof chargeUltimate === 'function') chargeUltimate(1);
   if (typeof jeffKillReaction === 'function') jeffKillReaction();
-  if (typeof fxEnemyDeath === 'function') fxEnemyDeath(ex, ey, typeof ENEMY_COLORS !== 'undefined' ? ENEMY_COLORS[etype] : '#ff3333');
-  playSound('enemyDeath');
+  if (typeof fxEnemyDeath === 'function') {
+    fxEnemyDeath(
+      ex,
+      ey,
+      typeof ENEMY_COLORS !== 'undefined' ? ENEMY_COLORS[etype] : '#ff3333',
+      { elite: !!e.isElite, combo: G.combo }
+    );
+  }
+  if (typeof fxEnemyRewardBurst === 'function') {
+    fxEnemyRewardBurst(ex, ey, {
+      gold: goldVal,
+      xp: e.xp,
+      elite: !!e.isElite,
+    });
+  }
+  playSound(e.isElite ? 'enemyDeathElite' : 'enemyDeath');
   if (typeof degenOnEnemyDeath === 'function') degenOnEnemyDeath(ex, ey);
   // Juice: micro hitstop on kills (stronger for elites/high combo)
   if (typeof hitstop === 'function') {
@@ -1198,6 +1342,10 @@ function enemyDeath(e) {
     if (hpk) {
       hpk.active = true; hpk.x = ex + (Math.random() - 0.5) * 20; hpk.y = ey + (Math.random() - 0.5) * 20;
       hpk.type = 'heart'; hpk.val = 15; hpk.mag = false;
+      hpk._bobSeed = Math.random() * Math.PI * 2;
+      hpk._spawnT = 0;
+      hpk._trailCd = 0;
+      hpk._spin = (Math.random() - 0.5) * 0.35;
     }
   }
 
@@ -1224,7 +1372,8 @@ function spawnContinuous(dt) {
     const y = spawnPoint.y;
     const type = Math.min(diff.maxType, Math.floor(Math.random() * (diff.maxType + 1)));
 
-    const isElite = G.wave >= 5 && Math.random() < 0.08;
+    const eliteChance = G.wave >= 10 ? 0.08 : G.wave >= 8 ? 0.06 : G.wave >= 6 ? 0.04 : G.wave >= 4 ? 0.02 : 0;
+    const isElite = eliteChance > 0 && Math.random() < eliteChance;
     if (isElite) {
       const stats = ENEMY_STATS[type];
       spawnEnemy(type, x, y, { isElite: true, hp: stats.hp * 3, dmg: stats.dmg * 2, gold: stats.gold * 3, xp: stats.xp * 3, sz: stats.sz * 1.3 });
@@ -1344,16 +1493,32 @@ function hitPlayer(dmg, sourceX, sourceY, kbForce) {
   }
 
   const armorDmg = Math.max(1, dmg - P.armor);
+  let hitDirX = 0;
+  let hitDirY = -1;
+  if (Number.isFinite(sourceX) && Number.isFinite(sourceY)) {
+    const dx = P.x - sourceX;
+    const dy = P.y - sourceY;
+    const ds = Math.hypot(dx, dy) || 1;
+    hitDirX = dx / ds;
+    hitDirY = dy / ds;
+  }
   P.hp -= armorDmg; P.iframes = 0.5; P.flash = 0.1;
   G.totalDmgTaken += armorDmg;
   G.combo = 0; G.comboDecay = 0;
-  P._hitPulse = Math.max(P._hitPulse || 0, 0.24);
+  const hpRatio = P.maxHp > 0 ? Math.max(0, P.hp) / P.maxHp : 1;
+  const danger = Math.max(0, Math.min(1, (0.45 - hpRatio) / 0.45));
+  const impactSeverity = Math.max(0.32, Math.min(1.25, armorDmg / Math.max(10, P.maxHp * 0.16) + danger * 0.45));
+  P._hitDirX = hitDirX;
+  P._hitDirY = hitDirY;
+  P._hitPulse = Math.max(P._hitPulse || 0, 0.24 + impactSeverity * 0.08);
+  P._hitPulseMax = P._hitPulse;
+  P._hitSeverity = Math.max(P._hitSeverity || 0, impactSeverity);
   if (typeof applyPlayerKnockback === 'function') applyPlayerKnockback(sourceX, sourceY, kbForce || Math.min(420, 150 + armorDmg * 9));
-  if (typeof jeffHitReaction === 'function') jeffHitReaction();
+  if (typeof jeffHitReaction === 'function') jeffHitReaction(impactSeverity);
   if (typeof playSound === 'function') playSound('hit');
-  if (typeof triggerShake === 'function') triggerShake(5, 0.2);
+  if (typeof triggerShake === 'function') triggerShake(Math.min(7, 4.1 + armorDmg * 0.1 + danger * 1.4), 0.12 + impactSeverity * 0.08);
   if (typeof triggerDamageFlash === 'function') triggerDamageFlash(armorDmg, P.hp, P.maxHp);
-  if (typeof fxPlayerHit === 'function') fxPlayerHit(P.x, P.y);
+  if (typeof fxPlayerHit === 'function') fxPlayerHit(P.x, P.y, { intensity: impactSeverity, danger, dirX: hitDirX, dirY: hitDirY });
 
   // Blood particles
   if (typeof spawnParticles === 'function') {
@@ -1374,16 +1539,19 @@ window.hitPlayer = hitPlayer;
 class Boss {
   constructor(data, wave) {
     this.data = data;
+    this.key = G.bossKey;
+    this.visual = getBossVisualProfile(this.key);
+    this.tuning = typeof getBossFightTuning === 'function' ? getBossFightTuning(this.key) : null;
     this.x = CAM.x + W / 2;
     this.y = CAM.y - 150;
     this.targetY = CAM.y + 150;
-    this.maxHp = data.hp * (1 + wave * 0.15);
+    this.maxHp = Math.round(data.hp * (typeof getBossHpScale === 'function' ? getBossHpScale(this.key, wave) : (1 + wave * 0.15)));
     this.hp = this.maxHp;
     this.sz = data.sz || 45;
     this.col = data.col || '#ff5500';
     this.state = 'enter';
     this.timer = 0;
-    this.attackCd = 2;
+    this.attackCd = this.getAttackCooldown(null, true);
     this.attackIdx = 0;
     this.flash = 0;
     this.phase2 = false;
@@ -1399,10 +1567,28 @@ class Boss {
     this.burnTime = 0;
     this.burnDmg = 0;
     this.burnFxCd = 0;
+    this.intent = null;
+  }
+
+  getAttackCooldown(atk, isFirstAttack) {
+    const tuning = this.tuning || {};
+    if (isFirstAttack && Number.isFinite(tuning.firstAttackCd)) return tuning.firstAttackCd;
+    const range = this.phase2 ? (tuning.phase2Cooldown || [1.05, 1.77]) : (tuning.attackCooldown || [1.55, 2.5]);
+    const minCd = Math.max(0.2, Number.isFinite(range[0]) ? range[0] : 1.55);
+    const maxCd = Math.max(minCd, Number.isFinite(range[1]) ? range[1] : minCd);
+    let cd = minCd + Math.random() * (maxCd - minCd);
+    if (atk && tuning.attackRecovery && Number.isFinite(tuning.attackRecovery[atk])) {
+      cd += tuning.attackRecovery[atk];
+    }
+    return cd;
   }
 
   update(dt) {
     if (this.flash > 0) this.flash -= dt;
+    if (this.intent) {
+      this.intent.timer -= dt;
+      if (this.intent.timer <= 0) this.intent = null;
+    }
     if (this.burnTime > 0 && this.burnDmg > 0) {
       this.burnTime = Math.max(0, this.burnTime - dt);
       this.burnFxCd = Math.max(0, (this.burnFxCd || 0) - dt);
@@ -1426,10 +1612,18 @@ class Boss {
         this.burnFxCd = 0;
       }
     }
-    if (!this.phase2 && this.hp <= this.maxHp * 0.5) {
+    const phase2Threshold = this.tuning && Number.isFinite(this.tuning.phase2Threshold) ? this.tuning.phase2Threshold : 0.5;
+    if (!this.phase2 && this.hp <= this.maxHp * phase2Threshold) {
       this.phase2 = true;
       this.flash = 0.18;
-      this.attackCd = Math.min(this.attackCd, 0.9);
+      const phaseBreakCd = this.tuning && Number.isFinite(this.tuning.phaseBreakCd) ? this.tuning.phaseBreakCd : 0.9;
+      this.attackCd = Math.min(this.attackCd, phaseBreakCd);
+      this.setIntent('phase_break', {
+        label: 'PHASE BREAK',
+        kind: 'shift',
+        duration: 1.15,
+        accent: '#ffd166'
+      });
       bossScreenFlash('flash_warm', 0.12, 0.1);
       if (typeof triggerShake === 'function') triggerShake(7, 0.12);
     }
@@ -1481,7 +1675,7 @@ class Boss {
       const atk = this.data.attacks[this.attackIdx % this.data.attacks.length];
       this.attack(atk);
       this.attackIdx++;
-      this.attackCd = (this.phase2 ? 1.05 : 1.55) + Math.random() * (this.phase2 ? 0.72 : 0.95);
+      this.attackCd = this.getAttackCooldown(atk, false);
     }
   }
 
@@ -1532,6 +1726,13 @@ class Boss {
         if (!d.impactDone) {
           d.impactDone = true;
           if (typeof fxExplosion === 'function') fxExplosion(this.x, this.y, d.impactRadius || 70);
+          triggerBossAttackImpact(this, {
+            kind: 'dash',
+            x: this.x,
+            y: this.y,
+            radius: d.impactRadius || 70,
+            sound: 'bossSlam'
+          });
           if (typeof triggerShake === 'function') triggerShake(d.shake || 8, 0.12);
           if (d.onImpact) d.onImpact();
         }
@@ -1562,9 +1763,29 @@ class Boss {
     };
   }
 
+  setIntent(attackId, cfg) {
+    const meta = getBossAttackTell(this.key, attackId);
+    const duration = (cfg && cfg.duration) || meta.duration || 0.95;
+    this.intent = {
+      id: attackId,
+      label: (cfg && cfg.label) || meta.label,
+      kind: (cfg && cfg.kind) || meta.kind || 'pattern',
+      accent: (cfg && cfg.accent) || meta.accent || this.visual.accent,
+      duration,
+      timer: duration
+    };
+  }
+
   startDash(targetX, targetY, cfg) {
     const tp = clampCombatPoint(targetX, targetY, this.sz + 24);
     cfg = cfg || {};
+    triggerBossAttackCue(this, (this.intent && this.intent.id) || 'dash', {
+      kind: 'dash',
+      sound: false,
+      targetX: tp.x,
+      targetY: tp.y,
+      targetRadius: cfg.hitRadius || 42
+    });
     this.dash = {
       phase: 'windup',
       timer: 0,
@@ -1582,6 +1803,7 @@ class Boss {
       flashAlpha: cfg.flashAlpha || 0.12,
       kbForce: cfg.kbForce || 340,
       shake: cfg.shake || 8,
+      accent: cfg.accent || (this.intent && this.intent.accent) || this.visual.accent,
       onStart: cfg.onStart,
       onImpact: cfg.onImpact,
       impactDone: false,
@@ -1598,24 +1820,34 @@ class Boss {
     this.shieldTimer = 0;
     bossSpawnRadial(this.x, this.y, count, shattered ? 285 : 235, dmg, '#6effcf', { size: 1.1 });
     bossScreenFlash('flash_purple', shattered ? 0.12 : 0.08, 0.08);
+    triggerBossAttackImpact(this, {
+      kind: 'shield',
+      radius: shattered ? 90 : 70,
+      sound: 'bossShield'
+    });
     if (typeof fxExplosion === 'function') fxExplosion(this.x, this.y, shattered ? 90 : 70);
   }
 
   attack(atk) {
+    this.setIntent(atk);
+    triggerBossAttackCue(this, atk);
     // ---- MURAD: SHILLSTORM ----
     // Boss aims at the player, fires 3 aimed bursts in quick succession
     // Each burst = a tight spread of green bolts shot FROM the boss TOWARD the player
     // Clear telegraph: boss glows, then fires. Dodge sideways.
     if (atk === 'shillstorm') {
       const bursts = this.phase2 ? 4 : 3;
+      const burstDelay = this.phase2 ? 0.33 : 0.42;
       bossScreenFlash('flash_purple', 0.07, 0.06);
       for (let i = 0; i < bursts; i++) {
-        bossSchedule(this, i * 0.35, () => {
+        bossSchedule(this, i * burstDelay, () => {
           const target = this.getLeadTarget(0.12);
           const aimAngle = Math.atan2(target.y - this.y, target.x - this.x);
           const count = this.phase2 ? 5 : 3;
-          const spread = this.phase2 ? 0.35 : 0.25;
-          spawnEnemyProjectileFan(this.x, this.y, aimAngle, count, spread, 280, 12, '#89ff3b', { size: 1.1 });
+          const spread = this.phase2 ? 0.35 : 0.28;
+          const speed = this.phase2 ? 280 : 248;
+          const damage = this.phase2 ? 12 : 10;
+          spawnEnemyProjectileFan(this.x, this.y, aimAngle, count, spread, speed, damage, '#89ff3b', { size: 1.1 });
           if (typeof spawnParticles === 'function') {
             spawnParticles(this.x, this.y, 4, {
               speed: 60, speedVar: 30, life: 0.25, size: 4, sizeEnd: 0,
@@ -1632,18 +1864,18 @@ class Boss {
     if (atk === 'cultcircle') {
       const target = this.getLeadTarget(0.15);
       this.startDash(target.x, target.y, {
-        windup: 0.32,
-        speed: this.phase2 ? 850 : 700,
-        damage: this.phase2 ? 22 : 16,
-        hitRadius: 50,
-        recover: 0.2,
-        impactRadius: 80,
+        windup: this.phase2 ? 0.32 : 0.4,
+        speed: this.phase2 ? 820 : 660,
+        damage: this.phase2 ? 20 : 14,
+        hitRadius: this.phase2 ? 48 : 44,
+        recover: this.phase2 ? 0.2 : 0.24,
+        impactRadius: this.phase2 ? 80 : 74,
         flashKind: 'flash_purple',
         flashAlpha: 0.14,
         shake: this.phase2 ? 7 : 5,
         onImpact: () => {
-          const count = this.phase2 ? 14 : 10;
-          bossSpawnRadial(this.x, this.y, count, this.phase2 ? 200 : 160, 10, '#89ff3b', { size: 1.0 });
+          const count = this.phase2 ? 14 : 8;
+          bossSpawnRadial(this.x, this.y, count, this.phase2 ? 200 : 150, this.phase2 ? 10 : 8, '#89ff3b', { size: 1.0 });
           if (typeof spawnParticles === 'function') {
             spawnParticles(this.x, this.y, 12, {
               speed: 100, speedVar: 50, life: 0.4, size: 5, sizeEnd: 0,
@@ -1707,16 +1939,16 @@ class Boss {
       bossScreenFlash('flash_warm', 0.12, 0.08);
       const rings = this.phase2 ? 3 : 2;
       for (let r = 0; r < rings; r++) {
-        bossSchedule(this, r * 0.55, () => {
+        bossSchedule(this, r * (this.phase2 ? 0.5 : 0.62), () => {
           const gapAngle = Math.atan2(P.y - this.y, P.x - this.x) + (Math.random() - 0.5) * 1.2;
-          const count = this.phase2 ? 22 : 18;
-          const gapSize = this.phase2 ? 1.8 : 2.2; // gap in radians — smaller = harder
+          const count = this.phase2 ? 22 : 16;
+          const gapSize = this.phase2 ? 1.95 : 2.55; // gap in radians — smaller = harder
           for (let i = 0; i < count; i++) {
             const a = (i / count) * Math.PI * 2;
             // Skip projectiles in the gap
             const diff = Math.abs(((a - gapAngle + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
             if (diff < gapSize / 2) continue;
-            spawnEnemyProjectile(this.x, this.y, a, 160 + r * 30, this.phase2 ? 18 : 14, '#ffd54f', { size: 1.2 });
+            spawnEnemyProjectile(this.x, this.y, a, 150 + r * 24, this.phase2 ? 18 : 12, '#ffd54f', { size: 1.2 });
           }
           if (typeof spawnParticles === 'function') {
             spawnParticles(this.x, this.y, 10, {
@@ -1732,7 +1964,7 @@ class Boss {
     // Summons minions in pyramid formation that march toward the player
     if (atk === 'referral') {
       bossScreenFlash('flash_warm', 0.08, 0.06);
-      const rows = this.phase2 ? 4 : 3;
+      const rows = this.phase2 ? 4 : 2;
       const aimAngle = Math.atan2(P.y - this.y, P.x - this.x);
       const perpX = -Math.sin(aimAngle);
       const perpY = Math.cos(aimAngle);
@@ -1744,7 +1976,8 @@ class Boss {
           const sx = this.x + Math.cos(aimAngle) * dist + perpX * offset;
           const sy = this.y + Math.sin(aimAngle) * dist + perpY * offset;
           const diff = typeof getDifficulty === 'function' ? getDifficulty(G.wave) : { maxType: 1 };
-          if (typeof spawnEnemy === 'function') spawnEnemy(Math.min(diff.maxType, 1), sx, sy);
+          const minionTypeCap = this.phase2 ? Math.min(diff.maxType, 1) : Math.min(diff.maxType, 0);
+          if (typeof spawnEnemy === 'function') spawnEnemy(minionTypeCap, sx, sy);
         }
       }
       return;
@@ -2061,6 +2294,8 @@ class Boss {
   draw(ctx) {
     const drawSz = this.sz * 2.5;
     const half = drawSz / 2;
+    const visual = this.visual || getBossVisualProfile(G.bossKey);
+    const pulse = 0.72 + Math.sin(this.timer * 4.4 + this._phaseDrift) * 0.28;
     // Get walk frame or fallback to static directional sprite
     const fa = this.faceAngle || Math.PI / 2;
     const dirSprites = typeof BOSS_SPRITES !== 'undefined' ? BOSS_SPRITES[G.bossKey] : null;
@@ -2069,27 +2304,173 @@ class Boss {
     const spr = walkFrame || (isPixelArt ? (typeof getBossSprite === 'function' ? getBossSprite(G.bossKey, fa) : dirSprites['south']) : dirSprites);
     const sprReady = spr && (spr.complete !== false);
 
+    ctx.save();
+    ctx.translate(this.x, this.y + this.sz * 0.5);
+    const sigilR = this.sz + 18 + (this.phase2 ? 8 : 0);
+    const floorGlow = ctx.createRadialGradient(0, 0, sigilR * 0.25, 0, 0, sigilR * 2.05);
+    floorGlow.addColorStop(0, bossColorWithAlpha(visual.accent, 0.18 + pulse * 0.05));
+    floorGlow.addColorStop(0.45, bossColorWithAlpha(visual.secondary, 0.07 + pulse * 0.04));
+    floorGlow.addColorStop(1, 'transparent');
+    ctx.fillStyle = floorGlow;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, sigilR * 1.55, sigilR * 0.72, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = bossColorWithAlpha(visual.accent, 0.3 + pulse * 0.12 + (this.phase2 ? 0.08 : 0));
+    ctx.lineWidth = this.phase2 ? 2.8 : 2.2;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, sigilR * 1.18, sigilR * 0.5, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.save();
+    ctx.scale(1, 0.64);
+    ctx.rotate(this.timer * 0.16);
+    switch (visual.motif) {
+      case 'hex':
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2;
+          const px = Math.cos(a) * sigilR * 0.9;
+          const py = Math.sin(a) * sigilR * 0.9;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.stroke();
+        break;
+      case 'diamond':
+        ctx.beginPath();
+        ctx.moveTo(0, -sigilR);
+        ctx.lineTo(sigilR * 0.8, 0);
+        ctx.lineTo(0, sigilR);
+        ctx.lineTo(-sigilR * 0.8, 0);
+        ctx.closePath();
+        ctx.stroke();
+        break;
+      case 'spike':
+        ctx.beginPath();
+        ctx.moveTo(0, -sigilR);
+        ctx.lineTo(sigilR * 0.32, -sigilR * 0.18);
+        ctx.lineTo(sigilR * 0.92, 0);
+        ctx.lineTo(sigilR * 0.32, sigilR * 0.18);
+        ctx.lineTo(0, sigilR);
+        ctx.lineTo(-sigilR * 0.32, sigilR * 0.18);
+        ctx.lineTo(-sigilR * 0.92, 0);
+        ctx.lineTo(-sigilR * 0.32, -sigilR * 0.18);
+        ctx.closePath();
+        ctx.stroke();
+        break;
+      case 'spiral':
+        ctx.beginPath();
+        for (let i = 0; i <= 28; i++) {
+          const t = i / 28;
+          const a = t * Math.PI * 2.2;
+          const r = sigilR * (0.16 + t * 0.72);
+          const px = Math.cos(a) * r;
+          const py = Math.sin(a) * r;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+        break;
+      case 'slash':
+        ctx.beginPath();
+        ctx.moveTo(-sigilR, -sigilR * 0.78);
+        ctx.lineTo(sigilR, sigilR * 0.78);
+        ctx.moveTo(-sigilR * 0.62, sigilR * 0.82);
+        ctx.lineTo(sigilR * 0.62, -sigilR * 0.82);
+        ctx.stroke();
+        break;
+      case 'crown':
+        ctx.beginPath();
+        ctx.moveTo(-sigilR, sigilR * 0.42);
+        ctx.lineTo(-sigilR * 0.54, -sigilR * 0.18);
+        ctx.lineTo(0, -sigilR);
+        ctx.lineTo(sigilR * 0.54, -sigilR * 0.18);
+        ctx.lineTo(sigilR, sigilR * 0.42);
+        ctx.stroke();
+        break;
+      case 'grid':
+        ctx.strokeRect(-sigilR * 0.75, -sigilR * 0.75, sigilR * 1.5, sigilR * 1.5);
+        ctx.beginPath();
+        ctx.moveTo(-sigilR * 0.25, -sigilR * 0.75);
+        ctx.lineTo(-sigilR * 0.25, sigilR * 0.75);
+        ctx.moveTo(sigilR * 0.25, -sigilR * 0.75);
+        ctx.lineTo(sigilR * 0.25, sigilR * 0.75);
+        ctx.moveTo(-sigilR * 0.75, -sigilR * 0.25);
+        ctx.lineTo(sigilR * 0.75, -sigilR * 0.25);
+        ctx.moveTo(-sigilR * 0.75, sigilR * 0.25);
+        ctx.lineTo(sigilR * 0.75, sigilR * 0.25);
+        ctx.stroke();
+        break;
+      case 'square':
+        ctx.strokeRect(-sigilR * 0.8, -sigilR * 0.8, sigilR * 1.6, sigilR * 1.6);
+        ctx.beginPath();
+        ctx.moveTo(-sigilR * 0.8, 0);
+        ctx.lineTo(sigilR * 0.8, 0);
+        ctx.moveTo(0, -sigilR * 0.8);
+        ctx.lineTo(0, sigilR * 0.8);
+        ctx.stroke();
+        break;
+      case 'chevron':
+        ctx.beginPath();
+        ctx.moveTo(-sigilR * 0.85, -sigilR * 0.25);
+        ctx.lineTo(0, sigilR * 0.52);
+        ctx.lineTo(sigilR * 0.85, -sigilR * 0.25);
+        ctx.moveTo(-sigilR * 0.62, -sigilR * 0.55);
+        ctx.lineTo(0, sigilR * 0.02);
+        ctx.lineTo(sigilR * 0.62, -sigilR * 0.55);
+        ctx.stroke();
+        break;
+      default:
+        ctx.beginPath();
+        ctx.arc(0, 0, sigilR * 0.8, 0, Math.PI * 2);
+        ctx.stroke();
+        break;
+    }
+    ctx.restore();
+    for (let i = 0; i < 4; i++) {
+      const a = this.timer * 0.9 + i * (Math.PI / 2);
+      const ix = Math.cos(a) * sigilR * 1.05;
+      const iy = Math.sin(a) * sigilR * 0.46;
+      ctx.fillStyle = bossColorWithAlpha(i % 2 === 0 ? visual.secondary : visual.accent, 0.45 + pulse * 0.2);
+      ctx.beginPath();
+      ctx.arc(ix, iy, this.phase2 ? 3.2 : 2.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
     for (const c of this.clones) {
       if (!isOnScreen(c.x, c.y, 100)) continue;
       ctx.save();
       ctx.translate(c.x, c.y);
       ctx.globalAlpha = Math.max(0.18, Math.min(0.55, c.life / 4.5));
+      ctx.shadowColor = visual.accent;
+      ctx.shadowBlur = 10;
       if (sprReady) { ctx.imageSmoothingEnabled = false; ctx.drawImage(spr, -half, -half, drawSz, drawSz); ctx.imageSmoothingEnabled = true; }
+      ctx.shadowBlur = 0;
       ctx.restore();
     }
     if (this.dash && this.dash.phase === 'windup') {
+      const dashAlpha = 0.38 + pulse * 0.18;
       ctx.save();
-      ctx.strokeStyle = `rgba(255,255,255,${0.35 + Math.sin(this.timer * 18) * 0.15})`;
-      ctx.lineWidth = 5;
+      ctx.strokeStyle = bossColorWithAlpha(this.dash.accent || visual.accent, dashAlpha);
+      ctx.lineWidth = 5.5;
+      ctx.setLineDash([16, 10]);
+      ctx.lineDashOffset = -this.timer * 42;
       ctx.beginPath();
       ctx.moveTo(this.x, this.y);
       ctx.lineTo(this.dash.targetX, this.dash.targetY);
       ctx.stroke();
+      ctx.setLineDash([]);
       ctx.translate(this.dash.targetX, this.dash.targetY);
-      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.fillStyle = bossColorWithAlpha(this.dash.accent || visual.accent, 0.16 + pulse * 0.06);
       ctx.beginPath();
       ctx.arc(0, 0, this.dash.hitRadius, 0, Math.PI * 2);
       ctx.fill();
+      ctx.strokeStyle = bossColorWithAlpha(visual.secondary, 0.7);
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(0, 0, Math.max(8, this.dash.hitRadius * 0.35), 0, Math.PI * 2);
+      ctx.stroke();
       ctx.restore();
     }
     ctx.save(); ctx.translate(this.x, this.y);
@@ -2097,6 +2478,18 @@ class Boss {
     // Glow effect for pixel art bosses
     const glowCol = typeof BOSS_GLOW !== 'undefined' && BOSS_GLOW[G.bossKey];
     if (glowCol && isPixelArt) { ctx.shadowColor = glowCol; ctx.shadowBlur = 15; }
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    const bossGlow = ctx.createRadialGradient(0, 0, this.sz * 0.2, 0, 0, half + 18);
+    bossGlow.addColorStop(0, bossColorWithAlpha(visual.secondary, 0.18 + pulse * 0.08));
+    bossGlow.addColorStop(0.45, bossColorWithAlpha(visual.accent, 0.12 + pulse * 0.08 + (this.phase2 ? 0.05 : 0)));
+    bossGlow.addColorStop(1, 'transparent');
+    ctx.fillStyle = bossGlow;
+    ctx.beginPath();
+    ctx.arc(0, 0, half + 18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
 
     if (sprReady) { ctx.imageSmoothingEnabled = false; ctx.drawImage(spr, -half, -half, drawSz, drawSz); ctx.imageSmoothingEnabled = true; }
     ctx.shadowBlur = 0;
@@ -2126,6 +2519,35 @@ class Boss {
       ctx.globalCompositeOperation = 'source-over';
     }
     ctx.restore();
+
+    ctx.save();
+    ctx.translate(this.x, this.y - half - 24);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = "800 10px 'Exo 2'";
+    const tagLabel = String(visual.tag || this.data.sub || 'BOSS').toUpperCase();
+    const tagWidth = Math.max(92, ctx.measureText(tagLabel).width + 20);
+    ctx.fillStyle = bossColorWithAlpha('#04070c', 0.74);
+    ctx.strokeStyle = bossColorWithAlpha(visual.accent, 0.36);
+    ctx.lineWidth = 1.2;
+    ctx.fillRect(-tagWidth / 2, -10, tagWidth, 16);
+    ctx.strokeRect(-tagWidth / 2, -10, tagWidth, 16);
+    ctx.fillStyle = visual.secondary;
+    ctx.fillText(tagLabel, 0, -2);
+    if (this.intent) {
+      const intentProgress = this.intent.duration > 0 ? Math.max(0, Math.min(1, this.intent.timer / this.intent.duration)) : 0;
+      ctx.font = "900 11px 'Exo 2'";
+      const intentWidth = Math.max(124, ctx.measureText(this.intent.label).width + 24);
+      ctx.fillStyle = bossColorWithAlpha('#02050a', 0.84);
+      ctx.strokeStyle = bossColorWithAlpha(this.intent.accent || visual.accent, 0.5);
+      ctx.fillRect(-intentWidth / 2, 12, intentWidth, 22);
+      ctx.strokeRect(-intentWidth / 2, 12, intentWidth, 22);
+      ctx.fillStyle = this.intent.accent || visual.accent;
+      ctx.fillText(this.intent.label, 0, 22);
+      ctx.fillStyle = bossColorWithAlpha(this.intent.accent || visual.accent, 0.9);
+      ctx.fillRect(-intentWidth / 2 + 4, 30, (intentWidth - 8) * intentProgress, 2.5);
+    }
+    ctx.restore();
   }
 }
 
@@ -2136,26 +2558,44 @@ function getBossForWave(wave) {
 
 function startBossIntro() {
   G.phase = 'bossIntro';
-  G.bossIntroTime = 3.0;
   enemies.clear(); projs.clear(); hazards.clear(); pickups.clear();
 
   G.bossKey = getBossForWave(G.wave);
   const bossData = BOSSES[G.bossKey];
+  const bossVisual = getBossVisualProfile(G.bossKey);
+  const bossTuning = typeof getBossFightTuning === 'function' ? getBossFightTuning(G.bossKey) : null;
+  G.bossIntroTime = bossTuning && Number.isFinite(bossTuning.introTime) ? bossTuning.introTime : 3.0;
 
   const introEl = document.getElementById('boss-intro');
   introEl.classList.remove('h');
   const stageLabel = G.mode === 'adventure' ? `STAGE ${Math.floor(G.wave / WAVES_PER_STAGE)} BOSS` : `WAVE ${G.wave} BOSS`;
-  const bossHpScaled = Math.round(bossData.hp * (1 + G.wave * 0.15));
+  const bossHpScaled = Math.round(bossData.hp * (typeof getBossHpScale === 'function' ? getBossHpScale(G.bossKey, G.wave) : (1 + G.wave * 0.15)));
   const threatLevel = bossHpScaled > 3000 ? 'EXTREME' : bossHpScaled > 1500 ? 'HIGH' : bossHpScaled > 800 ? 'MEDIUM' : 'LOW';
   const threatCol = threatLevel === 'EXTREME' ? '#ff0000' : threatLevel === 'HIGH' ? '#ff6b6b' : threatLevel === 'MEDIUM' ? '#ffa502' : '#55efc4';
-  introEl.innerHTML = `
-    <div class="boss-intro-warning">WARNING</div>
-    <div class="boss-intro-name">${bossData.name}</div>
-    <div class="boss-intro-sub">${bossData.sub}</div>
-    <div class="boss-intro-stage">${stageLabel}</div>
-    <div class="boss-intro-threat" style="color:${threatCol}">THREAT: ${threatLevel} · HP ${bossHpScaled}</div>
-  `;
-  if (typeof playSound === 'function') playSound('bossDeath');
+  if (window.MediaDirector && typeof MediaDirector.showBossIdent === 'function') {
+    MediaDirector.showBossIdent({
+      bossKey: G.bossKey,
+      name: bossData.name,
+      sub: bossData.sub,
+      tagline: bossVisual.tag,
+      stageLabel,
+      hp: bossHpScaled,
+      threatLevel,
+      threatColor: threatCol,
+      accent: bossData.col,
+      domain: bossVisual.tag
+    });
+  } else {
+    introEl.innerHTML = `
+      <div class="boss-intro-warning">WARNING</div>
+      <div class="boss-intro-name">${bossData.name}</div>
+      <div class="boss-intro-sub">${bossData.sub}</div>
+      <div class="boss-intro-stage">${stageLabel}</div>
+      <div class="boss-intro-threat" style="color:${threatCol}">THREAT: ${threatLevel} . HP ${bossHpScaled}</div>
+      <div class="boss-intro-threat" style="color:${bossVisual.secondary}">${bossVisual.tag}</div>
+    `;
+    if (typeof playSound === 'function') playSound('bossDeath');
+  }
 }
 
 function updateBossIntro(dt) {
@@ -2170,12 +2610,14 @@ function startBoss() {
   G.phase = 'boss';
   const bossData = BOSSES[G.bossKey];
   G.boss = new Boss(bossData, G.wave);
+  P.iframes = Math.max(P.iframes || 0, 0.4);
   document.querySelectorAll('.mo').forEach(m => m.classList.add('h'));
   document.getElementById('boss-intro').classList.add('h');
   document.getElementById('boss-bar').classList.remove('h');
   document.getElementById('boss-bar-name').textContent = bossData.name;
   document.getElementById('boss-bar-sub').textContent = bossData.sub;
   enemies.clear(); projs.clear(); hazards.clear();
+  if (window.MediaDirector && typeof MediaDirector.enterBossCombat === 'function') MediaDirector.enterBossCombat(G.bossKey);
   lastT = performance.now();
 }
 

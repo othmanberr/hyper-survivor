@@ -182,17 +182,84 @@ function autoPickLevelUpChoice(choices, player) {
   return best;
 }
 
+function serializeLevelUpChoice(choice, index, seq) {
+  if (!choice) return null;
+  return {
+    index: typeof index === 'number' ? index : -1,
+    id: choice.id || `choice_${index}`,
+    type: choice.type || 'unknown',
+    name: choice.name || 'Upgrade',
+    desc: choice.desc || '',
+    rarity: choice.rarity || 'common',
+    weaponId: choice.weaponId || null,
+    evoId: choice.evoId || null,
+    skillId: choice.skillId || null,
+    seq: typeof seq === 'number' ? seq : null,
+  };
+}
+
+function resolveExternalLevelUpChoice(choices, player) {
+  if (!choices || !choices.length) return null;
+  const chooser = window._hsSelectLevelUpChoice;
+  if (typeof chooser !== 'function') return null;
+
+  try {
+    const serializedChoices = choices.map((choice, index) => serializeLevelUpChoice(choice, index));
+    const result = chooser(serializedChoices, player || P);
+
+    if (typeof result === 'number' && result >= 0 && result < choices.length) {
+      return choices[result];
+    }
+
+    if (typeof result === 'string') {
+      return choices.find((choice) => choice.id === result) || null;
+    }
+
+    if (result && typeof result === 'object') {
+      if (typeof result.index === 'number' && result.index >= 0 && result.index < choices.length) {
+        return choices[result.index];
+      }
+      if (typeof result.id === 'string') {
+        return choices.find((choice) => choice.id === result.id) || null;
+      }
+    }
+  } catch (err) {
+    console.warn('[LEVELUP] External chooser failed', err);
+  }
+
+  return null;
+}
+
 function showAutoLevelUpBanner(choice) {
   if (!choice || choice.type === 'evolution') return;
   const el = document.getElementById('milestone-banner');
   if (!el) return;
+  const rarityStyles = {
+    common: { accent: '#55efc4', sub: '#b7fff3', kicker: 'UPGRADE ONLINE' },
+    rare: { accent: '#74b9ff', sub: '#dbe8ff', kicker: 'RARE PULL' },
+    epic: { accent: '#ff9f43', sub: '#ffe0ba', kicker: 'EPIC PULL' },
+    legendary: { accent: '#ffd166', sub: '#fff3bf', kicker: 'LEGENDARY' },
+  };
+  const style = rarityStyles[choice.rarity] || rarityStyles.common;
+  const title = choice.type === 'weapon'
+    ? 'NEW WEAPON'
+    : choice.type === 'weaponUpgrade'
+      ? 'WEAPON UP'
+      : choice.type === 'stat'
+        ? 'STAT BOOST'
+        : 'LEVEL UP';
   const label = choice.name || 'Upgrade';
+  const detail = choice.desc || String(choice.rarity || 'common').toUpperCase();
+  const icon = choice.icon ? `<span style="display:inline-block;margin-right:8px;filter:drop-shadow(0 0 14px ${style.accent}55)">${choice.icon}</span>` : '';
+  if (el._hideTimer) clearTimeout(el._hideTimer);
   el.classList.remove('h');
   el.innerHTML = `
-    <div class="milestone-text">LEVEL UP</div>
-    <div style="font-family:'JetBrains Mono';font-size:14px;color:#7ce8ff;letter-spacing:2px;margin-top:6px;animation:milestonePop 1.2s cubic-bezier(0.34,1.56,0.64,1) 0.12s forwards;opacity:0">${label}</div>
+    <div class="milestone-text" style="filter:drop-shadow(0 0 20px ${style.accent}55)">${title}</div>
+    <div style="font-family:'JetBrains Mono';font-size:15px;color:${style.accent};letter-spacing:1.5px;margin-top:6px;animation:milestonePop 1.2s cubic-bezier(0.34,1.56,0.64,1) 0.12s forwards;opacity:0">${icon}${label}</div>
+    <div style="font-family:'JetBrains Mono';font-size:11px;color:${style.sub};letter-spacing:2px;margin-top:5px;opacity:0.92">${detail}</div>
+    <div style="font-family:'JetBrains Mono';font-size:10px;color:${style.sub};letter-spacing:3px;margin-top:4px;opacity:0.7">${style.kicker}</div>
   `;
-  setTimeout(() => el.classList.add('h'), 1200);
+  el._hideTimer = setTimeout(() => el.classList.add('h'), 1500);
 }
 
 function showEvolutionBanner(weaponName) {

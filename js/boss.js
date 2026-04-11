@@ -107,7 +107,7 @@ function getBossForWave(wave) {
 
 function startBossIntro() {
     G.phase = 'bossIntro';
-    G.bossIntroTime = 3.0;
+    G.bossIntroTime = window.__HS_QA_MODE ? 0.12 : 3.0;
     enemies.clear(); projs.clear(); hazards.clear(); pickups.clear();
 
     G.bossKey = getBossForWave(G.wave);

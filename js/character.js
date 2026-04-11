@@ -604,14 +604,15 @@ function updateCharacterAnim(dt, inputSource) {
     }
 }
 
-function jeffHitReaction() {
-    JEFF_ANIM.hitTimer = 0.35;
+function jeffHitReaction(intensity) {
+    const amp = Math.max(0.9, Math.min(1.45, intensity || 1));
+    JEFF_ANIM.hitTimer = 0.28 + amp * 0.12;
     JEFF_ANIM.expression = 'hurt';
-    JEFF_ANIM.expressionTimer = 0.5;
-    JEFF_ANIM.squash = 0.84;
-    JEFF_ANIM.stretch = 1.16;
-    JEFF_ANIM.hurtShake = 1.6;
-    JEFF_ANIM.kickback = 3;
+    JEFF_ANIM.expressionTimer = 0.4 + amp * 0.16;
+    JEFF_ANIM.squash = 0.88 - amp * 0.05;
+    JEFF_ANIM.stretch = 1.12 + amp * 0.06;
+    JEFF_ANIM.hurtShake = 1.2 + amp * 0.7;
+    JEFF_ANIM.kickback = Math.max(JEFF_ANIM.kickback || 0, 2.4 + amp * 1.4);
 }
 
 function jeffKillReaction() {

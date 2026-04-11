@@ -3600,25 +3600,25 @@ console.log("ADDING LISTENERS");
 const MENU_MODE_BRIEF = {
   arcade: {
     kicker: 'OPERATOR BRIEF',
-    title: 'Arcade is locked for this V1 window.',
-    copy: 'Arcade remains in the roadmap, but is temporarily unavailable while we ship and stabilize Survivor on testnet.',
+    title: 'Arcade hits fast.',
+    copy: 'Jump into the pressure lab for a clean score chase, fast restart loop, and the quickest route back into combat.',
     card1Label: 'RUN SHAPE',
-    card1Value: 'Locked Mode',
-    card1Copy: 'Development paused until the Survivor V1 release lane is complete and validated.',
-    card2Label: 'STATUS',
-    card2Value: 'Coming Soon',
-    card2Copy: 'Re-open after V1 testnet feedback and post-launch hardening.'
+    card1Value: 'Pressure Test',
+    card1Copy: 'Single-lane momentum, quick reruns, and no boss gating between you and the grind.',
+    card2Label: 'BEST FOR',
+    card2Value: 'Warmup + Reruns',
+    card2Copy: 'Use it when you want immediate action, quick iteration, and clean score pressure without campaign setup.'
   },
   adventure: {
     kicker: 'OPERATOR BRIEF',
-    title: 'Survivor is the full V1 ship path.',
-    copy: 'This is the active release lane: progression, boss escalation, and the run quality we want for first public testers.',
+    title: 'Adventure returns in a later drop.',
+    copy: 'Arcade is the active lane right now. Adventure content is parked for a later focused release.',
     card1Label: 'RUN SHAPE',
-    card1Value: 'Campaign Lane',
-    card1Copy: 'Stage flow, boss cadence, and map identity create the core loop we are shipping now.',
-    card2Label: 'BEST FOR',
-    card2Value: 'V1 Playtests',
-    card2Copy: 'Use this path for balancing, QA evidence, and wallet/testnet score validation.'
+    card1Value: 'Roadmap Lane',
+    card1Copy: 'Staged flow and boss cadence remain planned, but are not in the current playable window.',
+    card2Label: 'STATUS',
+    card2Value: 'Later Update',
+    card2Copy: 'We will reopen this mode once the current lane is fully stabilized.'
   }
 };
 
@@ -3627,7 +3627,7 @@ function setMenuLaunchStatus(text) {
   if (statusEl && typeof text === 'string') statusEl.textContent = text;
 }
 
-function isArcadeLocked() {
+function isAdventureLocked() {
   return true;
 }
 
@@ -3665,16 +3665,10 @@ function wireMenuModePreview(button, mode) {
 }
 
 wireMenuModePreview(document.getElementById('btn-arcade'), 'arcade');
-wireMenuModePreview(document.getElementById('btn-adventure'), 'adventure');
-setMenuModePreview('adventure');
-setMenuLaunchStatus('Arcade mode is locked for V1. Survivor is the active release path.');
+setMenuModePreview('arcade');
+setMenuLaunchStatus('Adventure mode is locked for V1. Arcade is the active release path.');
 
 document.getElementById('btn-arcade').addEventListener('click', () => {
-  if (isArcadeLocked()) {
-    setMenuModePreview('arcade');
-    setMenuLaunchStatus('Arcade is coming soon. For now, launch Survivor for V1 playtests.');
-    return;
-  }
   if (typeof startArcadeFlow === 'function') {
     startArcadeFlow();
   } else {
@@ -3682,7 +3676,10 @@ document.getElementById('btn-arcade').addEventListener('click', () => {
   }
 });
 document.getElementById('btn-adventure').addEventListener('click', () => {
-  setMenuLaunchStatus('Launching Survivor V1 lane...');
+  if (isAdventureLocked()) {
+    setMenuLaunchStatus('Adventure is coming soon. For now, launch Arcade for V1 playtests.');
+    return;
+  }
   startGame('adventure');
 });
 
@@ -3896,8 +3893,8 @@ document.getElementById('btn-menu').addEventListener('click', () => {
   stopMusic();
   document.querySelectorAll('.mo').forEach(m => m.classList.add('h'));
   document.getElementById('mm').classList.remove('h');
-  setMenuModePreview('adventure');
-  setMenuLaunchStatus('Arcade mode is locked for V1. Survivor is the active release path.');
+  setMenuModePreview('arcade');
+  setMenuLaunchStatus('Adventure mode is locked for V1. Arcade is the active release path.');
   initAudio();
   startMusic();
   updateMenuHighscores();
@@ -3905,8 +3902,8 @@ document.getElementById('btn-menu').addEventListener('click', () => {
 document.getElementById('btn-vmenu').addEventListener('click', () => {
   document.querySelectorAll('.mo').forEach(m => m.classList.add('h'));
   document.getElementById('mm').classList.remove('h');
-  setMenuModePreview('adventure');
-  setMenuLaunchStatus('Arcade mode is locked for V1. Survivor is the active release path.');
+  setMenuModePreview('arcade');
+  setMenuLaunchStatus('Adventure mode is locked for V1. Arcade is the active release path.');
   initAudio();
   startMusic();
   updateMenuHighscores();
@@ -3919,16 +3916,12 @@ document.getElementById('btn-quit').addEventListener('click', () => {
   G.prevPhase = null;
   document.querySelectorAll('.mo').forEach(m => m.classList.add('h'));
   document.getElementById('mm').classList.remove('h');
-  setMenuModePreview('adventure');
-  setMenuLaunchStatus('Arcade mode is locked for V1. Survivor is the active release path.');
+  setMenuModePreview('arcade');
+  setMenuLaunchStatus('Adventure mode is locked for V1. Arcade is the active release path.');
   initAudio();
   startMusic();
   updateMenuHighscores();
 });
-const _pauseRangeBtn = document.getElementById('btn-range-pause');
-if (_pauseRangeBtn) _pauseRangeBtn.addEventListener('click', () => { if (typeof showBulletPreview === 'function') showBulletPreview(); });
-const _mainRangeBtn = document.getElementById('btn-range-main');
-if (_mainRangeBtn) _mainRangeBtn.addEventListener('click', () => { if (typeof showBulletPreview === 'function') showBulletPreview(); });
 // Stage map buttons
 document.getElementById('btn-stagemap').addEventListener('click', () => {
   document.getElementById('pause-menu').classList.add('h');

@@ -77,8 +77,7 @@ const hazards = new Pool(() => ({ active: false, type: '', x: 0, y: 0, life: 0, 
 const dmgNums = [];
 
 function addDmgNum(obj) {
-    if (typeof obj.n === 'number' || !isNaN(obj.n)) return;
-    if (dmgNums.length < MAX_DMG_NUMS) dmgNums.push(obj);
+    return;
 }
 
 let _frameNearest = null, _frameNearestDistSq = Infinity;

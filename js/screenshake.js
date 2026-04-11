@@ -1,5 +1,5 @@
 // ============ SCREEN SHAKE & SLOW-MO ============
-let shakeEnabled = true;
+let shakeEnabled = false;
 const shake = {
   x: 0,
   y: 0,

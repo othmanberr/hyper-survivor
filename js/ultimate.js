@@ -294,8 +294,8 @@ const MARKET_EVENTS = [
                 if (p) {
                     p.x = P.x + (Math.random() - 0.5) * 500;
                     p.y = P.y + (Math.random() - 0.5) * 500;
-                    p.type = Math.random() < 0.3 ? 'heal' : 'gold';
-                    p.val = p.type === 'heal' ? 20 : 10 + Math.floor(Math.random() * 15);
+                    p.type = Math.random() < 0.3 ? 'heart' : 'gold';
+                    p.val = p.type === 'heart' ? 20 : 10 + Math.floor(Math.random() * 15);
                     p.mag = false;
                     p.active = true;
                 }

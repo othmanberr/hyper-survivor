@@ -110,12 +110,60 @@ function renderPlayerAura(ctx) {
 let _cachedW = 0, _cachedH = 0;
 let _cachedBloom = null, _cachedDarkVig = null;
 
+function intensityColorWithAlpha(color, alpha) {
+    if (!color) return `rgba(255,255,255,${alpha})`;
+    if (color.startsWith('#')) {
+        let hex = color.slice(1);
+        if (hex.length === 3) hex = hex.split('').map(ch => ch + ch).join('');
+        if (hex.length === 6) {
+            const value = parseInt(hex, 16);
+            const r = (value >> 16) & 255;
+            const g = (value >> 8) & 255;
+            const b = value & 255;
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+    }
+    const rgb = color.match(/^rgba?\(([^)]+)\)$/i);
+    if (rgb) {
+        const parts = rgb[1].split(',').map(part => part.trim());
+        return `rgba(${parts[0] || 255}, ${parts[1] || 255}, ${parts[2] || 255}, ${alpha})`;
+    }
+    return color;
+}
+
+function getIntensityPalette() {
+    if (typeof STAGE_PALETTES !== 'undefined' && Array.isArray(STAGE_PALETTES) && STAGE_PALETTES.length) {
+        const stage = typeof G !== 'undefined' && Number.isFinite(G.stage) ? G.stage : 0;
+        return STAGE_PALETTES[Math.max(0, Math.min(STAGE_PALETTES.length - 1, stage))] || STAGE_PALETTES[0];
+    }
+    return { accent: '#ff00aa', secondary: '#00ffdd' };
+}
+
+function getIntensityProfile() {
+    const combo = Math.min(1, (G.combo || 0) / 50);
+    const leverage = Math.min(1, ((P.leverage || 1) - 1) / 20);
+    const hpRatio = P.maxHp > 0 ? P.hp / P.maxHp : 1;
+    const lowHp = Math.max(0, Math.min(1, (0.45 - hpRatio) / 0.45));
+    const boss = G.phase === 'boss' ? 0.18 : 0;
+    const dash = P.dashT > 0 ? 0.1 : 0;
+    return {
+        combo,
+        leverage,
+        lowHp,
+        boss,
+        dash,
+        palette: getIntensityPalette(),
+        total: Math.max(0, Math.min(1, combo * 0.5 + leverage * 0.2 + lowHp * 0.22 + boss + dash))
+    };
+}
+
 // ---- SCREEN INTENSITY (post-process overlay) ----
 function renderScreenIntensity(ctx) {
     const W = ctx.canvas.width, H = ctx.canvas.height;
-    const comboIntensity = Math.min(1, G.combo / 50);
-    const levIntensity = Math.min(1, (P.leverage - 1) / 20);
-    const total = Math.min(1, comboIntensity * 0.6 + levIntensity * 0.4);
+    const profile = getIntensityProfile();
+    const total = profile.total;
+    const pal = profile.palette;
+    const time = G.totalTime || 0;
 
     if (total < 0.05) return;
 
@@ -137,21 +185,69 @@ function renderScreenIntensity(ctx) {
         const abr = total * 2;
         ctx.globalAlpha = 0.04 * total;
         ctx.globalCompositeOperation = 'screen';
-        ctx.fillStyle = '#ff0000';
+        ctx.fillStyle = pal.accent;
         ctx.fillRect(abr, 0, W, H);
-        ctx.fillStyle = '#0000ff';
+        ctx.fillStyle = pal.secondary;
         ctx.fillRect(-abr, 0, W, H);
         ctx.globalCompositeOperation = 'source-over';
     }
 
+    const centerBloom = ctx.createRadialGradient(W / 2, H / 2, W * 0.05, W / 2, H / 2, W * (0.45 + profile.combo * 0.12));
+    centerBloom.addColorStop(0, intensityColorWithAlpha('#ffffff', 0.08 + profile.combo * 0.06));
+    centerBloom.addColorStop(0.35, intensityColorWithAlpha(pal.secondary, 0.06 + total * 0.08));
+    centerBloom.addColorStop(0.72, intensityColorWithAlpha(pal.accent, 0.05 + profile.leverage * 0.08));
+    centerBloom.addColorStop(1, 'transparent');
+
     // Bloom overlay (bright center glow)
-    ctx.globalAlpha = 0.03 * total;
-    ctx.fillStyle = _cachedBloom;
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.24 + total * 0.12;
+    ctx.fillStyle = centerBloom;
     ctx.fillRect(0, 0, W, H);
+
+    // Stage-colored edge pressure to frame the combat space
+    const edgeGlow = ctx.createLinearGradient(0, 0, W, 0);
+    edgeGlow.addColorStop(0, intensityColorWithAlpha(pal.accent, 0.22 + total * 0.08));
+    edgeGlow.addColorStop(0.14, 'transparent');
+    edgeGlow.addColorStop(0.86, 'transparent');
+    edgeGlow.addColorStop(1, intensityColorWithAlpha(pal.secondary, 0.2 + total * 0.08));
+    ctx.globalAlpha = 0.3 + profile.combo * 0.15;
+    ctx.fillStyle = edgeGlow;
+    ctx.fillRect(0, 0, W, H);
+
+    // Dynamic sweep band to make high-pressure moments feel more alive
+    if (profile.combo > 0.12 || profile.boss > 0) {
+        const sweepY = H * (0.24 + Math.sin(time * 1.6) * 0.12);
+        const sweep = ctx.createLinearGradient(0, sweepY - 90, W, sweepY + 90);
+        sweep.addColorStop(0, 'transparent');
+        sweep.addColorStop(0.18, intensityColorWithAlpha(pal.secondary, 0.04 + profile.combo * 0.03));
+        sweep.addColorStop(0.5, intensityColorWithAlpha('#ffffff', 0.05 + profile.boss * 0.08));
+        sweep.addColorStop(0.82, intensityColorWithAlpha(pal.accent, 0.05 + profile.combo * 0.04));
+        sweep.addColorStop(1, 'transparent');
+        ctx.globalAlpha = 0.55;
+        ctx.fillStyle = sweep;
+        ctx.fillRect(0, sweepY - 110, W, 220);
+    }
+
+    // Low HP / boss pressure rim
+    if (profile.lowHp > 0.01 || profile.boss > 0) {
+        const danger = ctx.createRadialGradient(W / 2, H / 2, W * 0.24, W / 2, H / 2, W * 0.62);
+        danger.addColorStop(0, 'transparent');
+        danger.addColorStop(0.72, 'transparent');
+        danger.addColorStop(0.9, intensityColorWithAlpha(profile.lowHp > 0.15 ? '#ff4757' : pal.accent, 0.1 + profile.lowHp * 0.14 + profile.boss * 0.08));
+        danger.addColorStop(1, intensityColorWithAlpha('#05070c', 0.5));
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = danger;
+        ctx.fillRect(0, 0, W, H);
+    }
 
     // Edge vignette intensifies
     ctx.globalAlpha = 0.15 * total;
     ctx.fillStyle = _cachedDarkVig;
+    ctx.fillRect(0, 0, W, H);
+
+    // Keep a subtle bright core so the center remains readable in heavy action
+    ctx.globalAlpha = 0.05 + profile.combo * 0.04;
+    ctx.fillStyle = _cachedBloom;
     ctx.fillRect(0, 0, W, H);
 
     ctx.restore();
@@ -199,6 +295,7 @@ function renderKillStreak(ctx) {
     const W = ctx.canvas.width;
     const s = streakDisplay;
     const alpha = Math.min(1, s.timer * 2);
+    const pal = getIntensityPalette();
 
     // Slide in from right
     const slideX = Math.max(0, (s.scale - 1) * 60);
@@ -209,6 +306,18 @@ function renderKillStreak(ctx) {
 
     const x = W - 30 + slideX;
     const y = 90;
+
+    const tw = ctx.measureText(s.text).width;
+    const panelW = tw + 34;
+    const panelX = x - panelW - 8;
+    const panel = ctx.createLinearGradient(panelX, 0, x + 12, 0);
+    panel.addColorStop(0, intensityColorWithAlpha('#04060b', 0.05));
+    panel.addColorStop(0.3, intensityColorWithAlpha('#04060b', 0.75));
+    panel.addColorStop(1, intensityColorWithAlpha(pal.accent, 0.12));
+
+    ctx.globalAlpha = alpha * 0.85;
+    ctx.fillStyle = panel;
+    ctx.fillRect(panelX, y - 8, panelW, 32);
 
     // Glow behind text
     ctx.shadowColor = s.col;
@@ -221,7 +330,6 @@ function renderKillStreak(ctx) {
     // Thin line underneath
     ctx.shadowBlur = 0;
     ctx.globalAlpha = alpha * 0.4;
-    const tw = ctx.measureText(s.text).width;
     ctx.fillRect(x - tw, y + 24, tw, 1);
 
     ctx.restore();
@@ -259,6 +367,12 @@ function renderComboParticles(ctx) {
     ctx.save();
     for (const p of comboParticles) {
         ctx.globalAlpha = Math.min(1, p.life * 3) * 0.6;
+        ctx.strokeStyle = p.col;
+        ctx.lineWidth = Math.max(1, p.sz * 0.4);
+        ctx.beginPath();
+        ctx.moveTo(p.x - p.vx * 0.03, p.y - p.vy * 0.03);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
         ctx.fillStyle = p.col;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.sz, 0, Math.PI * 2);
