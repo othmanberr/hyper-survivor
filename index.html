@@ -5,14 +5,37 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HYPER SURVIVOR</title>
-  <link rel="stylesheet" href="css/style.css?v=100">
+  <link rel="stylesheet" href="css/style.css?v=101">
   <script>
+    window.__HS_RUNTIME_ERRORS = [];
+    window.__HS_QA_MODE = /(?:\\?|&)devQa=1(?:&|$)/.test(window.location.search);
+    window.__HS_DEBUG_ALERTS = /(?:\\?|&)debugAlerts=1(?:&|$)/.test(window.location.search)
+      || window.localStorage.getItem('hsDebugAlerts') === '1';
+
+    window.__hsReportRuntimeIssue = function (kind, payload) {
+      const message = `[${kind}] ${payload}`;
+      window.__HS_RUNTIME_ERRORS.push({
+        kind,
+        payload: String(payload),
+        ts: Date.now()
+      });
+      console.error(message);
+      if (window.__HS_DEBUG_ALERTS) {
+        alert(message);
+      }
+    };
+
     window.onerror = function (msg, url, lineNo, columnNo, error) {
-      alert("ERROR: " + msg + "\n" + url + ":" + lineNo + ":" + columnNo + "\n" + (error && error.stack ? error.stack : ""));
+      const stack = error && error.stack ? "\n" + error.stack : "";
+      window.__hsReportRuntimeIssue(
+        'runtime-error',
+        msg + "\n" + url + ":" + lineNo + ":" + columnNo + stack
+      );
       return false;
     };
+
     window.addEventListener('unhandledrejection', function (event) {
-      alert("PROMISE REJECTION: " + event.reason);
+      window.__hsReportRuntimeIssue('promise-rejection', event.reason);
     });
   </script>
 </head>
@@ -23,6 +46,12 @@
     <video id="cinematic-video" preload="none" playsinline muted>
       <source src="assets/video/cinematic.mp4" type="video/mp4">
     </video>
+    <div id="cinematic-meta">
+      <div id="cinematic-kicker"></div>
+      <div id="cinematic-title"></div>
+      <div id="cinematic-subtitle"></div>
+      <div id="cinematic-line"></div>
+    </div>
     <div id="cinematic-skip">PRESS SPACE TO SKIP</div>
   </div>
 
@@ -37,38 +66,64 @@
     <div id="hud">
       <div class="hud-shell" id="hud-shell" data-hp-state="stable">
         <div class="hud-line">
-          <!-- HP mini-bar -->
-          <div class="hl-hp">
-            <div class="hl-hp-track">
-              <div class="hl-hp-fill" id="hpb"></div>
+          <div class="hl-segment hl-segment-hp">
+            <div class="hl-segment-head">
+              <span class="hl-segment-label">VITALS</span>
+              <span class="hl-state-pill" id="hud-hp-state">STABLE</span>
             </div>
-            <span class="hl-hp-txt" id="hpt">100/100</span>
+            <div class="hl-hp">
+              <div class="hl-hp-track">
+                <div class="hl-hp-fill" id="hpb"></div>
+              </div>
+              <span class="hl-hp-txt" id="hpt">100/100</span>
+            </div>
           </div>
-          <!-- XP (hidden, JS compat) -->
-          <div class="h">
-            <div id="xpb"></div>
+          <div class="hl-segment hl-segment-run">
+            <span class="hl-segment-label" id="hud-mode-kicker">ADVENTURE</span>
+            <span class="hl-wave" id="stage-info">1/100</span>
           </div>
-          <!-- Level -->
-          <span class="hl-lv" id="lvl">1</span>
-          <!-- Wave -->
-          <span class="hl-wave" id="stage-info">1/100</span>
-          <!-- Timer -->
-          <span class="hl-time" id="wave-timer">0:30</span>
-          <!-- Gold -->
-          <span class="hl-gold">₿<b id="gold">0</b></span>
-          <!-- 2 tiny buttons -->
-          <button class="hl-btn hl-btn-shop" id="btn-shop-hud" onclick="openPersistentShop()">🛒</button>
-          <button class="hl-btn hl-btn-pause" id="btn-pause-hud" onclick="togglePause()">⏸</button>
+          <div class="hl-segment hl-segment-level">
+            <span class="hl-segment-label">LEVEL</span>
+            <span class="hl-lv" id="lvl">LV 1</span>
+          </div>
+          <div class="hl-segment hl-segment-time">
+            <span class="hl-segment-label">FLOW</span>
+            <span class="hl-time" id="wave-timer">0:30</span>
+          </div>
+          <div class="hl-segment hl-segment-gold">
+            <span class="hl-segment-label">BANK</span>
+            <span class="hl-gold">₿<b id="gold">0</b></span>
+          </div>
+          <div class="hl-segment hl-segment-actions">
+            <button class="hl-btn hl-btn-shop" id="btn-shop-hud" onclick="openPersistentShop()">
+              <span class="hl-btn-ico">🛒</span>
+              <span class="hl-btn-txt">SHOP</span>
+            </button>
+            <button class="hl-btn hl-btn-pause" id="btn-pause-hud" onclick="togglePause()">
+              <span class="hl-btn-ico">⏸</span>
+              <span class="hl-btn-txt">PAUSE</span>
+            </button>
+          </div>
         </div>
-        <!-- Hidden elements for JS compat -->
-        <span class="h" id="hud-hp-state"></span>
-        <span class="h" id="xp-meta"></span>
-        <span class="h" id="hud-mode-kicker"></span>
-      </div>
-      <!-- Kills counter bottom-right -->
-      <div class="hud-kills-corner">
-        <span class="hud-kills-ico">💀</span>
-        <span class="hud-kills-val" id="hud-kill-corner-val">0</span>
+        <div class="hud-subline">
+          <div class="hl-sub-chip hl-sub-chip-xp">
+            <span class="hl-sub-label">XP</span>
+            <div class="hl-xp">
+              <div class="hl-xp-track">
+                <div class="hl-xp-fill" id="xpb"></div>
+              </div>
+            </div>
+            <span class="hl-sub-value" id="xp-meta">0 / 50 XP</span>
+          </div>
+          <div class="hl-sub-chip">
+            <span class="hl-sub-label">KILLS</span>
+            <span class="hl-sub-value" id="hud-kill-corner-val">0</span>
+          </div>
+          <div class="hl-sub-chip">
+            <span class="hl-sub-label">STATE</span>
+            <span class="hl-sub-value" id="hud-flow-state">LIVE</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -121,20 +176,44 @@
 
     <!-- Pause Menu -->
     <div class="mo h" id="pause-menu">
-      <div class="mt">PAUSED</div>
-      <div class="menu-separator"></div>
-      <div class="pause-weapons" id="pause-weapons"></div>
-      <div class="pause-stats" id="pause-stats"></div>
-      <div class="player-stats-bar pause-skill-bar" id="pause-skill-bar"></div>
-      <div style="display:flex;gap:8px;margin-top:20px;flex-wrap:wrap;justify-content:center">
-        <button class="mb" id="btn-stagemap">MAP</button>
-        <button class="mb" id="btn-settings-pause">SETTINGS</button>
-        <button class="mb" id="btn-range-pause">SHOOTING RANGE</button>
-        <button class="mb primary" id="btn-resume">RESUME</button>
-        <button class="mb red" id="btn-quit">QUIT TO MENU</button>
-      </div>
-      <div class="menu-controls" style="margin-top:12px">
-        <span>ESC</span> resume
+      <div class="pause-shell">
+        <div class="pause-head">
+          <div class="pause-kicker" id="pause-kicker">RUN PAUSED</div>
+          <div class="mt pause-title">PAUSED</div>
+          <div class="pause-sub" id="pause-sub">ADVENTURE · STAGE 1 — 1/5</div>
+        </div>
+        <div class="menu-separator"></div>
+        <div class="pause-layout">
+          <div class="pause-column pause-column-main">
+            <div class="pause-card pause-card-stats">
+              <div class="pause-card-head">RUN SNAPSHOT</div>
+              <div class="pause-stats" id="pause-stats"></div>
+            </div>
+            <div class="pause-card">
+              <div class="pause-card-head">LOADOUT</div>
+              <div class="pause-weapons" id="pause-weapons"></div>
+            </div>
+            <div class="pause-card">
+              <div class="pause-card-head">SKILLS</div>
+              <div class="player-stats-bar pause-skill-bar" id="pause-skill-bar"></div>
+            </div>
+          </div>
+          <div class="pause-column pause-column-side">
+            <div class="pause-brief" id="pause-brief"></div>
+            <div class="pause-actions">
+              <button class="mb" id="btn-stagemap">MAP</button>
+              <button class="mb" id="btn-settings-pause">SETTINGS</button>
+              <button class="mb" id="btn-range-pause">SHOOTING RANGE</button>
+              <button class="mb primary" id="btn-resume">RESUME</button>
+              <button class="mb red" id="btn-quit">QUIT TO MENU</button>
+            </div>
+            <div class="menu-controls pause-controls">
+              <span>ESC</span> resume
+              <span>B</span> shop
+              <span>SPACE</span> dash ready
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -202,6 +281,7 @@
           </div>
         </div>
         <div class="select-footer">
+          <div class="select-summary" id="char-select-summary" aria-live="polite"></div>
           <button class="mb" id="btn-char-back">← BACK</button>
           <button class="mb primary glow-btn" id="btn-char-confirm">LOCK IN →</button>
         </div>
@@ -219,6 +299,7 @@
         </div>
         <div class="map-grid" id="map-grid"></div>
         <div class="select-footer">
+          <div class="select-summary" id="map-select-summary" aria-live="polite"></div>
           <button class="mb" id="btn-map-back">← BACK</button>
           <button class="mb primary glow-btn" id="btn-map-confirm">START ⚡</button>
         </div>
@@ -243,39 +324,70 @@
 
       <!-- Hero Content -->
       <div class="mm-hero">
-
-        <!-- Title block -->
-        <div class="mm-logo-block">
-          <div class="mm-title-line">
-            <span class="mm-title-hyper" data-text="HYPER">HYPER</span>
-          </div>
-          <div class="mm-title-line mm-title-line-2">
-            <span class="mm-title-survivor" data-text="SURVIVOR">SURVIVOR</span>
-          </div>
-          <div class="mm-tagline">SURVIVE THE MARKET <span class="mm-tagline-dot">·</span> CONQUER THE CHAIN</div>
+        <div class="mm-prep-strip">
+          <span class="mm-prep-label">PICK YOUR RUN</span>
+          <span class="mm-prep-divider"></span>
+          <span class="mm-prep-copy">Survivor V1 is live now. Arcade is temporarily locked for focused shipping.</span>
         </div>
 
-        <!-- Mode Selection -->
-        <div class="mm-modes">
-          <button class="mm-mode-card mm-mode-arcade" id="btn-arcade">
-            <div class="mm-mode-glow"></div>
-            <div class="mm-mode-icon">⚡</div>
-            <div class="mm-mode-title">ARCADE</div>
-            <div class="mm-mode-sep"></div>
-            <div class="mm-mode-desc">100 waves · No bosses · Pure grind</div>
-            <div class="mm-mode-arrow">→</div>
-          </button>
-          <button class="mm-mode-card mm-mode-adventure" id="btn-adventure">
-            <div class="mm-mode-glow"></div>
-            <div class="mm-mode-icon">🗺️</div>
-            <div class="mm-mode-title">ADVENTURE</div>
-            <div class="mm-mode-sep"></div>
-            <div class="mm-mode-desc">10 stages · 10 bosses · Different maps</div>
-            <div class="mm-mode-arrow">→</div>
-          </button>
+        <div class="mm-stage">
+          <div class="mm-main-column">
+            <!-- Title block -->
+            <div class="mm-logo-block">
+              <div class="mm-title-line">
+                <span class="mm-title-hyper" data-text="HYPER">HYPER</span>
+              </div>
+              <div class="mm-title-line mm-title-line-2">
+                <span class="mm-title-survivor" data-text="SURVIVOR">SURVIVOR</span>
+              </div>
+              <div class="mm-tagline">SURVIVE THE MARKET <span class="mm-tagline-dot">·</span> CONQUER THE CHAIN</div>
+            </div>
+
+            <!-- Mode Selection -->
+            <div class="mm-modes">
+              <button class="mm-mode-card mm-mode-arcade is-locked" id="btn-arcade" data-mode="arcade" aria-disabled="true" aria-describedby="menu-mode-brief">
+                <div class="mm-mode-glow"></div>
+                <span class="mm-mode-badge">COMING SOON</span>
+                <div class="mm-mode-icon">⚡</div>
+                <div class="mm-mode-title">ARCADE</div>
+                <div class="mm-mode-sep"></div>
+                <div class="mm-mode-desc">Temporarily locked while Survivor V1 ships.</div>
+                <div class="mm-mode-meta">Planned return after V1 stabilization</div>
+                <div class="mm-mode-arrow">🔒</div>
+              </button>
+              <button class="mm-mode-card mm-mode-adventure" id="btn-adventure" data-mode="adventure" aria-describedby="menu-mode-brief">
+                <div class="mm-mode-glow"></div>
+                <div class="mm-mode-icon">🗺️</div>
+                <div class="mm-mode-title">SURVIVOR</div>
+                <div class="mm-mode-sep"></div>
+                <div class="mm-mode-desc">V1 live path · 10 stages · 10 bosses</div>
+                <div class="mm-mode-meta">Primary release flow · testnet-ready target</div>
+                <div class="mm-mode-arrow">→</div>
+              </button>
+            </div>
+          </div>
+          <aside class="mm-side-panel" id="menu-mode-brief" data-mode="adventure">
+            <div class="mm-side-head">
+              <div class="mm-side-kicker" id="menu-brief-kicker">OPERATOR BRIEF</div>
+              <div class="mm-side-title" id="menu-brief-title">Survivor is the shipping lane.</div>
+              <div class="mm-side-copy" id="menu-brief-copy">Focus for V1 is one polished loop: progression, bosses, readability, and reliable testnet integration.</div>
+            </div>
+            <div class="mm-side-grid">
+              <div class="mm-side-card">
+                <span class="mm-side-card-label" id="menu-brief-card-1-label">RUN SHAPE</span>
+                <span class="mm-side-card-value" id="menu-brief-card-1-value">Campaign Lane</span>
+                <span class="mm-side-card-copy" id="menu-brief-card-1-copy">Structured stage flow, boss cadence, and map identity tuned for the first public release.</span>
+              </div>
+              <div class="mm-side-card">
+                <span class="mm-side-card-label" id="menu-brief-card-2-label">BEST FOR</span>
+                <span class="mm-side-card-value" id="menu-brief-card-2-value">V1 Playtests</span>
+                <span class="mm-side-card-copy" id="menu-brief-card-2-copy">Use this path for balancing, QA cycles, and wallet/testnet validation before release.</span>
+              </div>
+            </div>
+            <div id="menu-highscores" class="menu-highscores"></div>
+          </aside>
         </div>
-
-
+        <div class="mm-launch-status" id="menu-launch-status">Arcade mode is locked for V1. Survivor is the active release path.</div>
 
         <!-- Bottom HUD bar -->
         <div class="mm-bottom-bar">
@@ -292,14 +404,12 @@
             <button class="mm-hud-btn" id="btn-range-main">SHOOTING RANGE</button>
           </div>
           <div class="mm-bottom-right">
-            <span class="mm-version">v0.6 alpha</span>
+            <span class="mm-version">v1 candidate</span>
             <span class="mm-chain">⛓ HyperEVM</span>
           </div>
         </div>
 
       </div>
-
-      <div id="menu-highscores" class="menu-highscores"></div>
     </div>
 
     <!-- Shop (fullscreen) -->
@@ -439,7 +549,7 @@
     </div>
   </div>
 
-  <script src="js/audio.js?v=69"></script>
+  <script src="js/audio.js?v=71"></script>
   <script src="js/camera.js?v=71"></script>
   <script src="js/particles.js?v=73"></script>
   <script src="js/screenshake.js?v=71"></script>
@@ -461,20 +571,21 @@
   <script src="js/bullets/spinning_axe.js?v=1"></script>
   <script src="js/bullets/bat_fireball.js?v=1"></script>
   <script src="js/bullets/mage_iceball.js?v=1"></script>
-  <script src="js/levelup.js?v=78"></script>
+  <script src="js/levelup.js?v=79"></script>
   <script src="js/intro.js?v=73"></script>
-  <script src="js/globals.js?v=4"></script>
+  <script src="js/globals.js?v=6"></script>
   <script src="js/utils.js?v=8"></script>
   <script src="js/input.js?v=2"></script>
-  <script src="js/ui.js?v=4"></script>
-  <script src="js/combat.js?v=19"></script>
+  <script src="js/ui.js?v=5"></script>
+  <script src="js/mediaDirector.js?v=2"></script>
+  <script src="js/combat.js?v=21"></script>
   <script src="js/shop.js?v=5"></script>
   <script src="js/missions.js?v=68"></script>
-  <script src="js/ultimate.js?v=44"></script>
+  <script src="js/ultimate.js?v=45"></script>
   <script src="js/intensity.js?v=69"></script>
   <script src="js/degen.js?v=43"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
-  <script src="js/game.js?v=165"></script>
+  <script src="js/game.js?v=166"></script>
   <script src="js/bulletPreview.js?v=1"></script>
   <script src="js/web3.js?v=2"></script>
 </body>

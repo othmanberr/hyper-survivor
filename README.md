@@ -2,6 +2,18 @@
 
 Jeu web arcade / survivor en HTML, CSS et JavaScript.
 
+## V1 Focus (2026-04-11)
+
+- Mode actif: `Survivor`
+- Mode `Arcade`: verrouille temporairement (`Coming Soon`)
+- Priorite actuelle: readiness testnet + stabilite release
+
+Docs V1:
+
+- `docs/WHITEPAPER_V1.md`
+- `docs/TESTNET_READINESS_2026-04-11.md`
+- `docs/LAUNCH_CHECKLIST_V1_15J.md`
+
 ## Point d'entree
 
 - `index.html` : page principale du jeu
@@ -18,6 +30,46 @@ Puis ouvrir :
 ```text
 http://localhost:8888
 ```
+
+## Deploiement Vercel
+
+Le projet peut etre deploye comme site statique sur Vercel.
+
+Fichiers inclus au deploy:
+
+- `index.html`
+- `css/`
+- `js/`
+- `assets/`
+- `data/`
+
+Fichiers exclus du deploy:
+
+- `server.js`
+- `server.log`
+- `docs/`
+- `tools/`
+- `output/`
+- `tmp/`
+- `experiments/`
+
+Commande typique:
+
+```bash
+vercel
+```
+
+Puis pour mettre a jour l'alias de production:
+
+```bash
+vercel --prod
+```
+
+Notes:
+
+- Vercel sert le jeu en statique; `server.js` reste utile seulement en local.
+- `index.html` est configure en `no-store` via `vercel.json` pour que les testeurs voient vite les nouvelles versions.
+- Le runtime web3 depend toujours du CDN `ethers`, donc il faut verifier apres deploy que le bouton wallet reste en etat propre sur la build partagee.
 
 ## Structure utile
 

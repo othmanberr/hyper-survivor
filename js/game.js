@@ -7,6 +7,40 @@ console.log("GAME.JS LINE 6 REACHED");
 
 // ============ PAUSE SYSTEM ============
 function renderPauseOverlay() {
+  const wps = typeof WAVES_PER_STAGE !== 'undefined' ? WAVES_PER_STAGE : 10;
+  const stageNum = Math.floor((Math.max(1, G.wave) - 1) / wps) + 1;
+  const waveInStage = ((Math.max(1, G.wave) - 1) % wps) + 1;
+  const hpRatio = P.maxHp > 0 ? P.hp / P.maxHp : 1;
+  const runStatus = hpRatio <= 0.3 ? 'CRITICAL' : hpRatio <= 0.68 ? 'PRESSURED' : 'STABLE';
+  const phaseLabel = G.phase === 'boss' ? 'BOSS LIVE' : G.phase === 'milestone' ? 'MILESTONE' : 'WAVE LIVE';
+  const pauseKicker = document.getElementById('pause-kicker');
+  const pauseSub = document.getElementById('pause-sub');
+  const pauseBrief = document.getElementById('pause-brief');
+  if (pauseKicker) pauseKicker.textContent = G.mode === 'arcade' ? 'ARCADE RUN PAUSED' : 'ADVENTURE RUN PAUSED';
+  if (pauseSub) {
+    pauseSub.textContent = G.mode === 'arcade'
+      ? `WAVE ${G.wave}/100 · ${phaseLabel} · ${formatTime(G.totalTime)}`
+      : `STAGE ${stageNum} — ${waveInStage}/${wps} · ${phaseLabel} · ${formatTime(G.totalTime)}`;
+  }
+  if (pauseBrief) {
+    const directive = hpRatio <= 0.3
+      ? 'Find breathing room before re-engaging.'
+      : G.phase === 'boss'
+        ? 'Read the tell, keep the lane clean, then commit.'
+        : G.combo >= 12
+          ? 'You have tempo. Push the wave while the combo is alive.'
+          : 'Reset cleanly, then rebuild pressure with the next pickup cluster.';
+    pauseBrief.innerHTML = `
+      <div class="pause-brief-kicker">TACTICAL READ</div>
+      <div class="pause-brief-status">${runStatus}</div>
+      <div class="pause-brief-copy">${directive}</div>
+      <div class="pause-brief-meta">
+        <span>HP ${Math.ceil(P.hp)}/${P.maxHp}</span>
+        <span>${G.kills} kills</span>
+        <span>${P.leverage}x lev</span>
+      </div>
+    `;
+  }
   const pw = document.getElementById('pause-weapons');
   pw.innerHTML = P.weapons.map(w => {
     const def = WEAPONS[w.id];
@@ -89,13 +123,65 @@ const DOM = {
   xpMeta: document.getElementById('xp-meta'),
   hudModeKicker: document.getElementById('hud-mode-kicker'),
   hudKillCornerVal: document.getElementById('hud-kill-corner-val'),
+  hudFlowState: document.getElementById('hud-flow-state'),
   hudShell: document.getElementById('hud-shell'),
   gold: document.getElementById('gold'),
+  bossBar: document.getElementById('boss-bar'),
+  bossBarName: document.getElementById('boss-bar-name'),
+  bossBarSub: document.getElementById('boss-bar-sub'),
+  bossBarContainer: document.querySelector('.boss-bar-container'),
   bossBarFill: document.getElementById('boss-bar-fill'),
   bossBarHp: document.getElementById('boss-bar-hp'),
   xpb: document.getElementById('xpb'),
 };
 let lastT = 0;
+
+function bossHudColor(color, alpha) {
+  if (typeof particleColorWithAlpha === 'function') return particleColorWithAlpha(color, alpha);
+  return color;
+}
+
+function getBossHudProfile(bossKey) {
+  const boss = (typeof BOSSES !== 'undefined' && BOSSES[bossKey]) || {};
+  const visual = (typeof BOSS_VISUALS !== 'undefined' && BOSS_VISUALS[bossKey]) || {};
+  return {
+    accent: visual.accent || boss.col || '#ff7755',
+    secondary: visual.secondary || '#ffffff',
+    tag: visual.tag || boss.sub || 'BOSS'
+  };
+}
+
+function updateBossHudState(boss) {
+  if (!boss || !DOM.bossBarFill || !DOM.bossBarHp) return;
+  const profile = getBossHudProfile(G.bossKey);
+  const accent = profile.accent;
+  const secondary = profile.secondary;
+  const intentLabel = boss.intent ? boss.intent.label : 'TRACKING';
+  const phaseLabel = boss.phase2 ? 'PHASE 2' : 'PHASE 1';
+  DOM.bossBarFill.style.width = `${Math.max(0, boss.hp / boss.maxHp * 100)}%`;
+  DOM.bossBarHp.textContent = `${Math.max(0, Math.ceil(boss.hp))} / ${Math.ceil(boss.maxHp)}`;
+  DOM.bossBarFill.style.background = `linear-gradient(90deg, ${bossHudColor(accent, 0.62)}, ${accent}, ${secondary})`;
+  DOM.bossBarFill.style.boxShadow = `0 0 16px ${bossHudColor(accent, 0.48)}, inset 0 0 12px ${bossHudColor('#ffffff', 0.16)}`;
+  if (DOM.bossBarContainer) {
+    DOM.bossBarContainer.style.borderColor = bossHudColor(accent, boss.shieldHp > 0 ? 0.7 : 0.42);
+    DOM.bossBarContainer.style.boxShadow = boss.shieldHp > 0
+      ? `0 0 18px ${bossHudColor(secondary, 0.24)}, inset 0 0 20px ${bossHudColor(accent, 0.14)}`
+      : `0 0 12px ${bossHudColor(accent, 0.18)}`;
+  }
+  if (DOM.bossBarName) {
+    DOM.bossBarName.textContent = boss.data.name;
+    DOM.bossBarName.style.color = accent;
+    DOM.bossBarName.style.textShadow = `0 0 14px ${bossHudColor(accent, 0.35)}`;
+  }
+  if (DOM.bossBarSub) {
+    DOM.bossBarSub.textContent = `${String(boss.data.sub || profile.tag).toUpperCase()} · ${phaseLabel} · ${intentLabel}`;
+    DOM.bossBarSub.style.color = bossHudColor(secondary, 0.9);
+    DOM.bossBarSub.style.textShadow = `0 0 10px ${bossHudColor(accent, 0.14)}`;
+  }
+  if (DOM.bossBar) {
+    DOM.bossBar.style.filter = boss.phase2 ? 'saturate(1.15)' : 'none';
+  }
+}
 
 // Lerp display values for smooth HUD bars
 let _hpDisplay = 100, _xpDisplay = 0;
@@ -186,7 +272,7 @@ function detonateFriendlyProjectile(p, dmgMult) {
 function triggerWeaponImpactFeel(vis, opts) {
   const cfg = getWeaponVisualConfig(vis);
   const feel = cfg && cfg.feel;
-  if (!feel || typeof triggerShake !== 'function' || typeof G === 'undefined') return;
+  if (!feel || typeof G === 'undefined') return;
 
   const now = Number.isFinite(G.totalTime) ? G.totalTime : 0;
   const stampKey = `${opts && opts.boss ? 'boss' : 'hit'}:${vis || 'fallback'}`;
@@ -196,13 +282,54 @@ function triggerWeaponImpactFeel(vis, opts) {
   WEAPON_FEEL_STATE[stampKey] = now;
 
   const killMult = opts && opts.killed ? (feel.killShakeMult || 1.2) : 1;
-  const bossMult = opts && opts.boss ? 0.9 : 1;
-  const shakeAmt = (feel.impactShake || 0) * killMult * bossMult;
+  const bossMult = opts && opts.boss ? 1.08 : 1;
+  const critMult = opts && opts.crit ? 1.12 : 1;
+  const shakeAmt = (feel.impactShake || 0) * killMult * bossMult * critMult;
   const shakeDur = feel.impactShakeDuration || 0.05;
-  if (shakeAmt > 0) triggerShake(shakeAmt, shakeDur);
+  if (shakeAmt > 0 && typeof triggerShake === 'function') triggerShake(shakeAmt, shakeDur);
 
-  if (!(opts && opts.crit) && feel.impactSlowmoScale && feel.impactSlowmoScale < 0.999) {
+  if (!(opts && opts.crit) && feel.impactSlowmoScale && feel.impactSlowmoScale < 0.999 && typeof triggerSlowmo === 'function') {
     triggerSlowmo(feel.impactSlowmoScale, feel.impactSlowmoDuration || 0.03);
+  }
+
+  const accent = cfg.impactColor || cfg.glowColor || '#ffffff';
+  const glow = cfg.glowColor || accent;
+  const life = Math.max(0.09, shakeDur + (opts && opts.killed ? 0.05 : 0.025));
+  const strength = Math.max(
+    0.4,
+    Math.min(
+      1.5,
+      0.45
+        + shakeAmt * 0.2
+        + (opts && opts.killed ? 0.16 : 0)
+        + (opts && opts.boss ? 0.14 : 0)
+        + (opts && opts.crit ? 0.08 : 0)
+    )
+  );
+  const nextPulse = {
+    accent,
+    glow,
+    life,
+    maxLife: life,
+    strength,
+    boss: !!(opts && opts.boss),
+    killed: !!(opts && opts.killed),
+    crit: !!(opts && opts.crit),
+  };
+  if (G._weaponImpactPulse && G._weaponImpactPulse.life > 0) {
+    const replaceColor = nextPulse.strength >= G._weaponImpactPulse.strength;
+    if (replaceColor) {
+      G._weaponImpactPulse.accent = nextPulse.accent;
+      G._weaponImpactPulse.glow = nextPulse.glow;
+    }
+    G._weaponImpactPulse.life = Math.max(G._weaponImpactPulse.life, nextPulse.life);
+    G._weaponImpactPulse.maxLife = Math.max(G._weaponImpactPulse.maxLife, nextPulse.maxLife);
+    G._weaponImpactPulse.strength = Math.max(G._weaponImpactPulse.strength, nextPulse.strength);
+    G._weaponImpactPulse.boss = G._weaponImpactPulse.boss || nextPulse.boss;
+    G._weaponImpactPulse.killed = G._weaponImpactPulse.killed || nextPulse.killed;
+    G._weaponImpactPulse.crit = G._weaponImpactPulse.crit || nextPulse.crit;
+  } else {
+    G._weaponImpactPulse = nextPulse;
   }
 }
 
@@ -255,11 +382,116 @@ function checkMilestones() {
   }
 }
 
-function showMilestone(text) {
+function showMilestone(text, opts) {
+  opts = opts || {};
   const el = document.getElementById('milestone-banner');
+  if (!el) return;
+  const subText = opts.subText || '';
+  const accent = opts.accent || '#ffd700';
+  const subColor = opts.subColor || '#9bdcff';
+  const duration = opts.duration || 1500;
+  if (el._hideTimer) clearTimeout(el._hideTimer);
   el.classList.remove('h');
-  el.innerHTML = `<div class="milestone-text">${text}</div>`;
-  setTimeout(() => el.classList.add('h'), 1500);
+  el.innerHTML = `
+    <div class="milestone-text" style="filter:drop-shadow(0 0 18px ${accent}55)">${text}</div>
+    ${subText ? `<div style="font-family:'JetBrains Mono';font-size:13px;color:${subColor};letter-spacing:2px;margin-top:6px;animation:milestonePop 1.1s cubic-bezier(0.34,1.56,0.64,1) 0.08s forwards;opacity:0">${subText}</div>` : ''}
+  `;
+  el._hideTimer = setTimeout(() => el.classList.add('h'), duration);
+}
+
+function getWaveTransitionPalette() {
+  const pal = typeof getCombatFxPalette === 'function' ? getCombatFxPalette() : null;
+  return {
+    accent: pal && pal.accent ? pal.accent : '#00cec9',
+    secondary: pal && pal.secondary ? pal.secondary : '#9bdcff',
+    reward: '#ffd166',
+    danger: '#ff6b6b'
+  };
+}
+
+function buildWaveIntroMeta(wave) {
+  const palette = getWaveTransitionPalette();
+  const diff = getDifficulty(wave);
+  const stageNum = Math.floor((wave - 1) / WAVES_PER_STAGE) + 1;
+  const stageWave = ((wave - 1) % WAVES_PER_STAGE) + 1;
+  const maxName = ((typeof ENEMY_NAMES !== 'undefined' ? ENEMY_NAMES[diff.maxType] : null) || 'Unknown').toUpperCase();
+  const bossSoon = G.mode === 'adventure' && stageWave === WAVES_PER_STAGE;
+  const earlyArcade = G.mode === 'arcade' && wave <= 3;
+  const kicker = bossSoon
+    ? 'FINAL PUSH BEFORE THE BOSS'
+    : earlyArcade
+      ? 'MARKET OPEN'
+      : wave === 1
+        ? 'OPENING PRINT'
+        : 'RESET · SCOOP · RELOAD';
+
+  return {
+    title: G.mode === 'adventure' ? `STAGE ${stageNum} — WAVE ${stageWave}` : `WAVE ${wave}/100`,
+    kicker,
+    subLabel: bossSoon ? `BOSS NEXT · THREAT MIX: ${maxName}` : `THREAT MIX: ${maxName}`,
+    difficulty: Math.min(1, G.mode === 'adventure' ? (wave + stageWave * 0.65) / 16 : wave / 20),
+    accent: bossSoon ? palette.danger : palette.accent,
+    reward: palette.reward,
+    subColor: palette.secondary,
+    countdownLabel: bossSoon ? 'LOCK IN' : 'ENGAGE'
+  };
+}
+
+function emitWaveTransitionFx(kind, opts) {
+  opts = opts || {};
+  if (typeof spawnParticles !== 'function') return;
+
+  const palette = getWaveTransitionPalette();
+  const x = Number.isFinite(opts.x) ? opts.x : P.x;
+  const y = Number.isFinite(opts.y) ? opts.y : P.y;
+  const accent = opts.accent || (kind === 'clear' ? palette.reward : palette.accent);
+  const secondary = opts.secondary || palette.secondary;
+  const burst = kind === 'clear' ? 14 : 10;
+
+  spawnParticles(x, y, burst, {
+    speed: kind === 'clear' ? 130 : 95,
+    speedVar: kind === 'clear' ? 55 : 40,
+    life: kind === 'clear' ? 0.34 : 0.24,
+    size: kind === 'clear' ? 3.2 : 2.8,
+    sizeEnd: 0,
+    colors: [accent, secondary, '#ffffff'],
+    friction: 0.89,
+    gravity: -20,
+    shape: kind === 'clear' ? 'spark' : 'circle',
+  });
+
+  spawnParticles(x, y, 1, {
+    speed: 0,
+    life: kind === 'clear' ? 0.2 : 0.16,
+    size: kind === 'clear' ? 18 : 14,
+    sizeEnd: kind === 'clear' ? 42 : 28,
+    color: particleColorWithAlpha(accent, kind === 'clear' ? 0.28 : 0.22),
+    shape: 'ring',
+    thickness: kind === 'clear' ? 2.6 : 2,
+  });
+
+  if (kind === 'clear') {
+    spawnParticles(x, y, 5, {
+      speed: 88,
+      speedVar: 28,
+      life: 0.18,
+      size: 1,
+      sizeEnd: 1,
+      colors: [accent, secondary],
+      length: 22,
+      lengthEnd: 4,
+      thickness: 2,
+      shape: 'line',
+    });
+  }
+
+  if (typeof triggerShake === 'function') triggerShake(kind === 'clear' ? 4.2 : 2.8, kind === 'clear' ? 0.12 : 0.08);
+  G._screenFlash = {
+    kind: kind === 'clear' ? 'flash_warm' : 'flash_default',
+    alpha: kind === 'clear' ? 0.085 : 0.05,
+    life: kind === 'clear' ? 0.11 : 0.08,
+    maxLife: kind === 'clear' ? 0.11 : 0.08,
+  };
 }
 
 // ============ MAP BUILDING ZONES ============
@@ -316,6 +548,14 @@ function pickSpawnTypeFromMix(mix, batchRecent) {
   return picked;
 }
 
+function getEliteSpawnChance(wave) {
+  if (wave >= 10) return 0.08;
+  if (wave >= 8) return 0.06;
+  if (wave >= 6) return 0.04;
+  if (wave >= 4) return 0.02;
+  return 0;
+}
+
 // ============ CONTINUOUS ENEMY SPAWNING ============
 function spawnContinuous(dt) {
   // DEBUG: spawne un de chaque type en cercle autour du joueur au premier tick
@@ -352,7 +592,8 @@ function spawnContinuous(dt) {
     batchRecent.push(type);
 
     // Elite enemy chance — from wave 5+, 8% chance
-    const isElite = G.wave >= 5 && Math.random() < 0.08;
+    const eliteChance = getEliteSpawnChance(G.wave);
+    const isElite = eliteChance > 0 && Math.random() < eliteChance;
     if (isElite) {
       spawnEnemy(type, x, y, { isElite: true, hp: ENEMY_STATS[type].hp * 3, dmg: ENEMY_STATS[type].dmg * 2, gold: ENEMY_STATS[type].gold * 3, xp: ENEMY_STATS[type].xp * 3, sz: ENEMY_STATS[type].sz * 1.3 });
     } else {
@@ -373,15 +614,24 @@ function clearInterWaveThreats() {
   });
 }
 
+function getPickupSoundType(type) {
+  if (type === 'gold') return 'pickupGold';
+  if (type === 'xp') return 'pickupXp';
+  if (type === 'heart') return 'pickupHeart';
+  return 'pickup';
+}
+
 function resolvePickupCollect(pk) {
   pk.active = false;
-  fxPickup(pk.x, pk.y, pk.type);
-  playSound('pickup');
+  fxPickup(pk.x, pk.y, pk.type, { amount: pk.val, magnetic: !!pk.mag });
+  playSound(getPickupSoundType(pk.type));
   if (pk.type === 'gold') {
     G.gold += pk.val;
     G.totalGoldEarned += pk.val;
+    if (typeof addDmgNum === 'function') addDmgNum({ x: pk.x, y: pk.y - 10, n: '+' + pk.val + 'G', life: 0.48, col: '#ffd54f' });
   } else if (pk.type === 'xp') {
     addXP(pk.val);
+    if (typeof addDmgNum === 'function') addDmgNum({ x: pk.x, y: pk.y - 10, n: 'XP+' + pk.val, life: 0.5, col: '#55efc4' });
   } else if (pk.type === 'heart') {
     P.hp = Math.min(P.maxHp, P.hp + pk.val);
     addDmgNum({ x: pk.x, y: pk.y - 10, n: '+' + pk.val, life: 0.6, col: '#55efc4' });
@@ -390,6 +640,13 @@ function resolvePickupCollect(pk) {
 
 function updatePickups(dt, forceMagnet) {
   pickups.each(pk => {
+    if (!Number.isFinite(pk._bobSeed)) pk._bobSeed = Math.random() * Math.PI * 2;
+    if (!Number.isFinite(pk._spawnT)) pk._spawnT = 0;
+    if (!Number.isFinite(pk._trailCd)) pk._trailCd = 0;
+    if (!Number.isFinite(pk._spin)) pk._spin = (Math.random() - 0.5) * 0.35;
+    pk._spawnT += dt;
+    if (pk._trailCd > 0) pk._trailCd -= dt;
+
     const dx = P.x - pk.x, dy = P.y - pk.y;
     const ds = Math.hypot(dx, dy) || 0.0001;
 
@@ -404,6 +661,20 @@ function updatePickups(dt, forceMagnet) {
         const pull = HEART_MAGNET_PULL * (0.7 + proximity * 0.35);
         pk.x += dx / ds * pull * dt;
         pk.y += dy / ds * pull * dt;
+        if (pk._trailCd <= 0 && typeof spawnParticles === 'function') {
+          pk._trailCd = 0.05;
+          spawnParticles(pk.x - dx / ds * 5, pk.y - dy / ds * 5, 1, {
+            speed: 12,
+            speedVar: 6,
+            life: 0.18,
+            size: 2.2,
+            sizeEnd: 0,
+            colors: ['#55efc4', '#d6fff4'],
+            friction: 0.92,
+            gravity: -20,
+            shape: 'circle',
+          });
+        }
         if (ds < HEART_MAGNET_COLLECT_DIST) resolvePickupCollect(pk);
       }
       return;
@@ -417,6 +688,25 @@ function updatePickups(dt, forceMagnet) {
       const pull = basePull + proximity * proximity * 600; // exponential acceleration
       pk.x += dx / ds * pull * dt;
       pk.y += dy / ds * pull * dt;
+      if (pk._trailCd <= 0 && typeof spawnParticles === 'function') {
+        pk._trailCd = 0.06;
+        const trailColors = pk.type === 'gold'
+          ? ['#ffd54f', '#fff2a3']
+          : pk.type === 'xp'
+            ? ['#55efc4', '#00f5d4']
+            : ['#ffffff', '#d6fff4'];
+        spawnParticles(pk.x - dx / ds * 5, pk.y - dy / ds * 5, 1, {
+          speed: 14,
+          speedVar: 8,
+          life: 0.16,
+          size: 2,
+          sizeEnd: 0,
+          colors: trailColors,
+          friction: 0.92,
+          gravity: -18,
+          shape: pk.type === 'gold' ? 'square' : 'circle',
+        });
+      }
       if (ds < 22) resolvePickupCollect(pk);
     }
   });
@@ -435,74 +725,19 @@ function updatePickups(dt, forceMagnet) {
 let cinematicPlayed = false;
 
 function playCinematic(onComplete) {
+  if (window.MediaDirector && typeof MediaDirector.playOpeningSequence === 'function') {
+    MediaDirector.playOpeningSequence({
+      alreadyPlayed: cinematicPlayed,
+      onComplete: () => {
+        cinematicPlayed = true;
+        onComplete();
+      }
+    });
+    return;
+  }
   if (cinematicPlayed) { onComplete(); return; }
   cinematicPlayed = true;
-
-  const overlay = document.getElementById('cinematic-overlay');
-  const video = document.getElementById('cinematic-video');
-
-  // Progressive slowdown config (villain laughing at end lasts longer)
-  const VIDEO_DURATION = 5.2;
-  const SLOWDOWN_START = 3.8;
-  const BASE_RATE = 0.6;
-  const MIN_RATE = 0.15;
-
-  let finished = false;
-  function finish() {
-    if (finished) return;
-    finished = true;
-    clearTimeout(safetyTimeout);
-    try { video.pause(); } catch (e) { }
-    overlay.classList.add('h');
-    document.removeEventListener('keydown', onKey);
-    overlay.removeEventListener('click', skipClick);
-    video.removeEventListener('ended', finish);
-    video.removeEventListener('error', finish);
-    video.removeEventListener('timeupdate', onTimeUpdate);
-    onComplete();
-  }
-
-  function onKey(e) {
-    if (e.code === 'Space' || e.code === 'Escape' || e.code === 'Enter') {
-      e.preventDefault();
-      finish();
-    }
-  }
-  function skipClick() { finish(); }
-
-  function onTimeUpdate() {
-    if (finished) return;
-    const t = video.currentTime;
-    if (t >= SLOWDOWN_START) {
-      const progress = (t - SLOWDOWN_START) / (VIDEO_DURATION - SLOWDOWN_START);
-      const clamped = Math.min(1, Math.max(0, progress));
-      const ease = clamped * clamped; // ease-in for dramatic slowdown
-      const rate = BASE_RATE - (BASE_RATE - MIN_RATE) * ease;
-      video.playbackRate = Math.max(MIN_RATE, rate);
-    }
-  }
-
-  // Safety: 30s timeout (longer due to end slowdown)
-  const safetyTimeout = setTimeout(finish, 30000);
-
-  overlay.classList.remove('h');
-  video.currentTime = 0;
-  video.playbackRate = BASE_RATE;
-  video.addEventListener('ended', finish);
-  video.addEventListener('error', finish);
-  video.addEventListener('timeupdate', onTimeUpdate);
-
-  // Delay skip listeners so START button click doesn't immediately skip
-  setTimeout(() => {
-    if (finished) return;
-    document.addEventListener('keydown', onKey);
-    overlay.addEventListener('click', skipClick);
-  }, 500);
-
-  try {
-    const p = video.play();
-    if (p && p.catch) p.catch(() => { finish(); });
-  } catch (e) { finish(); }
+  onComplete();
 }
 
 // ============ GAME FLOW ============
@@ -516,6 +751,7 @@ function startGame(mode) {
     G.stage = 0;
   }
   initAudio();
+  if (window.MediaDirector && typeof MediaDirector.syncAudioSettings === 'function') MediaDirector.syncAudioSettings();
   // Clean up previous game UI effects
   document.getElementById('gm').classList.remove('dramatic');
   document.getElementById('vm').classList.remove('spectacular');
@@ -523,7 +759,7 @@ function startGame(mode) {
   clearDamageFlash();
   G.wave = 0; G.gold = 30; G.kills = 0; G.phase = 'wave'; G.prevPhase = null;
   G.boss = null; G.bossKey = null; G.freezeTime = 0; G.totalTime = 0; G.combo = 0; G.comboTimer = 0; G.maxCombo = 0; G.spawnCd = 0;
-  G.waveIntroTime = 0; G.waveIntroTotal = 0; G.pendingLevelUps = 0; G._screenFlash = null;
+  G.waveIntroTime = 0; G.waveIntroTotal = 0; G.pendingLevelUps = 0; G._screenFlash = null; G._weaponImpactPulse = null; G._waveIntroMeta = null;
   G._debugSpawnedAll = false;
   G._recentSpawnTypes = [];
   // Reset tracking stats
@@ -536,12 +772,12 @@ function startGame(mode) {
     applyCharacterStats(P);
   }
   if (typeof DEBUG_ALL_ENEMIES !== 'undefined' && DEBUG_ALL_ENEMIES) { P.hp = P.maxHp = 9999; }
-  P.xp = 0; P.xpNext = 50; P.level = 1; P.weapons = [{ id: 'pistol', level: 1, cd: 0 }];
+  P.xp = 0; P.level = 1; P.xpNext = typeof getXpThreshold === 'function' ? getXpThreshold(P.level) : 50; P.weapons = [{ id: 'pistol', level: 1, cd: 0 }];
   P._turrets = []; P._swingAngle = 0; P._orbitalDetachCd = 0;
   P.iframes = 0; P.dmgMult = 1; P.cdMult = (G.mode === 'arcade' && typeof getSelectedCharacter === 'function') ? getSelectedCharacter().stats.cdMult : 1; P.magnetRange = 100;
   P.leverage = 1; P.leverageIdx = 0; P.dashCd = 0; P.dashTimer = 0; P.dashing = false; P.animTimer = 0;
   P.vx = 0; P.vy = 0; P.kbX = 0; P.kbY = 0;
-  P._hitPulse = 0;
+  P._hitPulse = 0; P._hitPulseMax = 0; P._hitSeverity = 0; P._hitDirX = 0; P._hitDirY = -1;
   CAM.x = P.x - W / 2; CAM.y = P.y - H / 2;
   enemies.clear(); projs.clear(); pickups.clear(); hazards.clear(); dmgNums.length = 0; particles.length = 0;
   godCandles.length = 0; afterimages.length = 0; _hpDisplay = 100; _xpDisplay = 0;
@@ -614,6 +850,9 @@ function _doStartWave() {
   G.waveTime = G.waveMaxTime;
   G.spawnCd = WAVE_BREATHER_SPAWN_GRACE;
   clearInterWaveThreats();
+  G._waveIntroMeta = buildWaveIntroMeta(G.wave);
+  if (window.MediaDirector && typeof MediaDirector.beginWave === 'function') MediaDirector.beginWave();
+  else if (typeof startMusic === 'function') startMusic();
 
   // Show wave intro banner
   G.phase = 'waveIntro';
@@ -625,15 +864,27 @@ function _doStartWave() {
 function nextWaveAfterBoss() {
   console.log('[BOSS] nextWaveAfterBoss called, mode:', G.mode, 'wave:', G.wave);
   const goldReward = 40 + G.wave * 10;
+  const stageNum = Math.floor((G.wave - 1) / WAVES_PER_STAGE) + 1;
   G.gold += goldReward;
   G.totalGoldEarned += goldReward;
   G.bossesKilled++;
   triggerShake(15, 0.5);
   triggerSlowmo(0.15, 0.8);
   fxBossDeath(G.boss.x, G.boss.y);
-  playSound('bossDeath');
+  const bossMedia = typeof getBossMediaProfile === 'function' ? getBossMediaProfile(G.bossKey) : null;
+  if (window.MediaDirector && typeof MediaDirector.handleBossDefeat === 'function') MediaDirector.handleBossDefeat(G.bossKey);
+  else playSound('bossDeath');
 
-  showWaveClearBanner();
+  showWaveClearBanner({
+    title: 'BOSS DEFEATED',
+    subText: G.mode === 'adventure'
+      ? `STAGE ${stageNum} SECURED · +${goldReward}G`
+      : `WAVE ${G.wave} BOSS DOWN · +${goldReward}G`,
+    detailText: bossMedia && bossMedia.deathLine ? bossMedia.deathLine : '',
+    accent: '#ffd166',
+    subColor: '#fff1b3',
+    duration: 2200
+  });
 
   // Adventure: check victory (wave 50 = last boss) and advance stage
   if (G.mode === 'adventure') {
@@ -660,22 +911,29 @@ function nextWaveAfterBoss() {
   setTimeout(() => { startNextWave(); lastT = performance.now(); requestAnimationFrame(loop); }, 1500);
 }
 
-function showWaveClearBanner() {
+function showWaveClearBanner(opts) {
+  opts = opts || {};
   const gc = document.getElementById('gc');
+  if (!gc) return;
   const banner = document.createElement('div');
   banner.className = 'stage-clear-banner';
   const stageNum = Math.floor(G.wave / WAVES_PER_STAGE);
-  const subText = G.mode === 'adventure' ? `STAGE ${stageNum} COMPLETE` : `WAVE ${G.wave} COMPLETE`;
+  const title = opts.title || 'BOSS DEFEATED';
+  const subText = opts.subText || (G.mode === 'adventure' ? `STAGE ${stageNum} COMPLETE` : `WAVE ${G.wave} COMPLETE`);
+  const detailText = opts.detailText || '';
+  const accent = opts.accent || '#ffd166';
+  const subColor = opts.subColor || '#ffeaa7';
+  const duration = opts.duration || 1800;
   banner.innerHTML = `
-    <div class="stage-clear-text">BOSS DEFEATED</div>
-    <div class="stage-clear-sub">${subText}</div>
+    <div class="stage-clear-text" style="color:${accent};text-shadow:0 0 22px ${accent}55">${title}</div>
+    <div class="stage-clear-sub" style="color:${subColor};letter-spacing:3px">${subText}</div>
+    ${detailText ? `<div class="stage-clear-detail">${detailText}</div>` : ''}
   `;
   gc.appendChild(banner);
-  setTimeout(() => banner.remove(), 1800);
+  setTimeout(() => banner.remove(), duration);
 }
 
 // ============ MAIN LOOP ============
-window.onerror = function (m, s, l, c, e) { console.error("CRASH", m, e) };
 
 function loop(t) {
   if (G.phase === 'paused' || G.phase === 'levelup') return;
@@ -703,6 +961,10 @@ function loop(t) {
     G._screenFlash.life -= rawDt;
     if (G._screenFlash.life <= 0) G._screenFlash = null;
   }
+  if (G._weaponImpactPulse) {
+    G._weaponImpactPulse.life -= rawDt;
+    if (G._weaponImpactPulse.life <= 0) G._weaponImpactPulse = null;
+  }
 
   // Leverage input
   if (inp.levUp && P.leverageIdx < LEVERAGE_STEPS.length - 1) { P.leverageIdx++; P.leverage = LEVERAGE_STEPS[P.leverageIdx]; inp.levUp = 0; }
@@ -721,8 +983,12 @@ function loop(t) {
     }
     updateParticles(dt * 0.85);
     if (G.waveIntroTime <= 0) {
+      const introMeta = G._waveIntroMeta || buildWaveIntroMeta(G.wave);
       G.phase = 'wave';
       P.iframes = Math.max(P.iframes || 0, 0.22);
+      emitWaveTransitionFx('start', { accent: introMeta.accent, secondary: introMeta.reward, x: P.x, y: P.y });
+      playSound('waveStart');
+      G._waveIntroMeta = null;
     }
     render(); updateHUD(); requestAnimationFrame(loop); return;
   }
@@ -738,19 +1004,47 @@ function loop(t) {
     G.waveTime -= dt;
     spawnContinuous(dt);
     if (G.waveTime <= 0) {
+      const palette = getWaveTransitionPalette();
+      const stageNum = Math.floor((G.wave - 1) / WAVES_PER_STAGE) + 1;
+      const stageWave = ((G.wave - 1) % WAVES_PER_STAGE) + 1;
+
       // Wave ended — mode-specific transitions
       if (G.mode === 'arcade') {
         // Arcade: 100 waves, no bosses, victory at 100
         if (G.wave >= 100) {
           victory();
         } else {
+          emitWaveTransitionFx('clear', { accent: palette.reward, secondary: palette.accent });
+          showMilestone('WAVE CLEAR', {
+            subText: `WAVE ${G.wave} LOCKED · NEXT ${G.wave + 1}`,
+            accent: palette.reward,
+            subColor: palette.secondary,
+            duration: 1050
+          });
+          playSound('waveClear');
           startNextWave();
         }
       } else {
         // Adventure: boss every 5 waves (end of stage)
         if (G.wave % WAVES_PER_STAGE === 0) {
+          emitWaveTransitionFx('clear', { accent: palette.danger, secondary: palette.reward });
+          showMilestone('BOSS INBOUND', {
+            subText: `STAGE ${stageNum} CLEARED · BRACE FOR IMPACT`,
+            accent: palette.danger,
+            subColor: palette.reward,
+            duration: 1150
+          });
+          playSound('waveClear');
           startBossIntro();
         } else {
+          emitWaveTransitionFx('clear', { accent: palette.reward, secondary: palette.accent });
+          showMilestone('WAVE CLEAR', {
+            subText: `STAGE ${stageNum} · NEXT WAVE ${stageWave + 1}`,
+            accent: palette.reward,
+            subColor: palette.secondary,
+            duration: 1050
+          });
+          playSound('waveClear');
           startNextWave();
         }
       }
@@ -761,8 +1055,7 @@ function loop(t) {
   // ---- BOSS PHASE ----
   if (G.phase === 'boss' && G.boss) {
     G.boss.update(dt);
-    DOM.bossBarFill.style.width = `${Math.max(0, G.boss.hp / G.boss.maxHp * 100)}%`;
-    DOM.bossBarHp.textContent = `${Math.max(0, Math.ceil(G.boss.hp))} / ${Math.ceil(G.boss.maxHp)}`;
+    updateBossHudState(G.boss);
     if (G.boss.hp <= 0) {
       nextWaveAfterBoss();
       render();
@@ -881,7 +1174,7 @@ function loop(t) {
   if (P.y < BUILDING_TOP + P.sz) { P.y = BUILDING_TOP + P.sz; P.vy *= -0.5; }
   else if (P.y > BUILDING_BOTTOM - P.sz) { P.y = BUILDING_BOTTOM - P.sz; P.vy *= -0.5; }
 
-  if (P.iframes > 0) P.iframes -= dt; if (P.flash > 0) P.flash -= dt; if (P._hitPulse > 0) P._hitPulse -= dt;
+  if (P.iframes > 0) P.iframes -= dt; if (P.flash > 0) P.flash -= dt; if (P._hitPulse > 0) P._hitPulse -= dt; if (P._hitSeverity > 0) P._hitSeverity -= dt * 2.4;
 
   // Update camera
   updateCamera(dt);
@@ -1840,6 +2133,43 @@ function drawEnemyReadabilityBase(ctx, e) {
 }
 
 function drawPlayerCombatFeedback(ctx) {
+  if (P._hitPulse > 0.01) {
+    const dirX = Number.isFinite(P._hitDirX) ? P._hitDirX : 0;
+    const dirY = Number.isFinite(P._hitDirY) ? P._hitDirY : -1;
+    const sourceAngle = Math.atan2(-dirY, -dirX);
+    const pulseT = Math.max(0, Math.min(1, P._hitPulse / Math.max(0.01, P._hitPulseMax || 0.32)));
+    const severity = Math.max(pulseT, Math.min(1, P._hitSeverity || 0));
+    const wedgeLen = 24 + severity * 20;
+    const wedgeHalf = 10 + severity * 8;
+
+    ctx.save();
+    ctx.translate(P.x, P.y);
+    ctx.rotate(sourceAngle);
+    ctx.globalCompositeOperation = 'lighter';
+    const wedgeGrad = ctx.createLinearGradient(-wedgeLen - 20, 0, 8, 0);
+    wedgeGrad.addColorStop(0, combatAlphaColor('#ff274f', 0));
+    wedgeGrad.addColorStop(0.28, combatAlphaColor('#ff274f', 0.16 + severity * 0.12));
+    wedgeGrad.addColorStop(0.72, combatAlphaColor('#ff9aa8', 0.34 + severity * 0.2));
+    wedgeGrad.addColorStop(1, combatAlphaColor('#ffffff', 0.1 + severity * 0.12));
+    ctx.fillStyle = wedgeGrad;
+    ctx.beginPath();
+    ctx.moveTo(-wedgeLen - 18, 0);
+    ctx.lineTo(-14, -wedgeHalf);
+    ctx.lineTo(8 + severity * 5, 0);
+    ctx.lineTo(-14, wedgeHalf);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = combatAlphaColor('#ffffff', 0.16 + severity * 0.24);
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(-wedgeLen * 0.78, -wedgeHalf * 0.22);
+    ctx.lineTo(-8, 0);
+    ctx.lineTo(-wedgeLen * 0.78, wedgeHalf * 0.22);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   // Ice slow visual — blue tint aura around player
   if (P._iceSlow > 0) {
     ctx.save();
@@ -2350,6 +2680,8 @@ function render() {
   }
 
   let _heartSprite = null;
+  let _goldPickupSprite = null;
+  let _xpPickupSprite = null;
   function getHeartSprite() {
     if (_heartSprite) return _heartSprite;
     const c = document.createElement('canvas');
@@ -2396,22 +2728,137 @@ function render() {
     return c;
   }
 
-  // Pickups
-  // Only render hearts (only pickup type on the map)
-  pickups.each(pk => {
-    if (pk.type !== 'heart') return;
-    if (!isOnScreen(pk.x, pk.y, 30)) return;
-    ctx.save(); ctx.translate(pk.x, pk.y);
-    const t = (G.totalTime * 1.2) % 1;
-    let beat = 1;
-    if (t < 0.1) beat = 1 + 0.2 * Math.sin(t / 0.1 * Math.PI);
-    else if (t > 0.18 && t < 0.28) beat = 1 + 0.12 * Math.sin((t - 0.18) / 0.1 * Math.PI);
-    const bob = Math.sin(G.totalTime * 1.5) * 2;
-    ctx.translate(0, bob);
-    ctx.scale(beat, beat);
+  function getGoldPickupSprite() {
+    if (_goldPickupSprite) return _goldPickupSprite;
+    const c = document.createElement('canvas');
+    c.width = 40; c.height = 40;
+    const cx = c.getContext('2d');
+    cx.translate(20, 20);
 
-    const spr = getHeartSprite();
-    ctx.drawImage(spr, -20, -20);
+    cx.beginPath();
+    cx.moveTo(-10, -8);
+    cx.lineTo(10, -8);
+    cx.lineTo(13, 0);
+    cx.lineTo(10, 8);
+    cx.lineTo(-10, 8);
+    cx.lineTo(-13, 0);
+    cx.closePath();
+    const grad = cx.createLinearGradient(-12, -8, 12, 8);
+    grad.addColorStop(0, '#fff0a6');
+    grad.addColorStop(0.45, '#ffd54f');
+    grad.addColorStop(1, '#d89b12');
+    cx.fillStyle = grad;
+    cx.fill();
+    cx.strokeStyle = 'rgba(255,255,255,0.35)';
+    cx.lineWidth = 2;
+    cx.stroke();
+
+    cx.fillStyle = 'rgba(255,255,255,0.28)';
+    cx.fillRect(-4, -6, 8, 2);
+    cx.fillStyle = 'rgba(150,90,0,0.22)';
+    cx.fillRect(-3, -1.5, 6, 3);
+
+    _goldPickupSprite = c;
+    return c;
+  }
+
+  function getXpPickupSprite() {
+    if (_xpPickupSprite) return _xpPickupSprite;
+    const c = document.createElement('canvas');
+    c.width = 40; c.height = 40;
+    const cx = c.getContext('2d');
+    cx.translate(20, 20);
+
+    cx.beginPath();
+    cx.moveTo(0, -13);
+    cx.lineTo(9, -2);
+    cx.lineTo(0, 12);
+    cx.lineTo(-9, -2);
+    cx.closePath();
+    const grad = cx.createLinearGradient(-8, -10, 8, 12);
+    grad.addColorStop(0, '#d5fff6');
+    grad.addColorStop(0.45, '#55efc4');
+    grad.addColorStop(1, '#00b894');
+    cx.fillStyle = grad;
+    cx.fill();
+    cx.strokeStyle = 'rgba(255,255,255,0.4)';
+    cx.lineWidth = 2;
+    cx.stroke();
+
+    cx.beginPath();
+    cx.moveTo(0, -9);
+    cx.lineTo(5, -2);
+    cx.lineTo(0, 7);
+    cx.lineTo(-5, -2);
+    cx.closePath();
+    cx.fillStyle = 'rgba(255,255,255,0.26)';
+    cx.fill();
+
+    _xpPickupSprite = c;
+    return c;
+  }
+
+  function getPickupSprite(type) {
+    if (type === 'gold') return getGoldPickupSprite();
+    if (type === 'xp') return getXpPickupSprite();
+    return getHeartSprite();
+  }
+
+  function getPickupGlow(type) {
+    if (type === 'gold') return '255,213,79';
+    if (type === 'xp') return '85,239,196';
+    return '255,107,129';
+  }
+
+  pickups.each(pk => {
+    if (!isOnScreen(pk.x, pk.y, 34)) return;
+    if (!Number.isFinite(pk._bobSeed)) pk._bobSeed = Math.random() * Math.PI * 2;
+    if (!Number.isFinite(pk._spawnT)) pk._spawnT = 0;
+    if (!Number.isFinite(pk._spin)) pk._spin = (Math.random() - 0.5) * 0.35;
+    const seed = pk._bobSeed;
+    const spawnIn = Math.min(1, (pk._spawnT || 0) / 0.16);
+    const bob = Math.sin(G.totalTime * (pk.type === 'heart' ? 1.5 : 2.2) + seed) * (pk.type === 'heart' ? 2 : 1.5);
+    const t = (G.totalTime * 1.2 + seed * 0.05) % 1;
+    let beat = pk.type === 'heart' ? 1 : 1 + Math.sin(G.totalTime * 4.2 + seed) * 0.06;
+    if (pk.type === 'heart') {
+      if (t < 0.1) beat = 1 + 0.2 * Math.sin(t / 0.1 * Math.PI);
+      else if (t > 0.18 && t < 0.28) beat = 1 + 0.12 * Math.sin((t - 0.18) / 0.1 * Math.PI);
+    }
+    const magBoost = pk.mag ? 1.06 : 1;
+    const scale = (0.84 + spawnIn * 0.16) * beat * magBoost;
+
+    ctx.save();
+    ctx.translate(pk.x, pk.y + bob);
+
+    if (pk.mag) {
+      const ang = Math.atan2(P.y - pk.y, P.x - pk.x);
+      ctx.save();
+      ctx.rotate(ang);
+      ctx.strokeStyle = `rgba(${getPickupGlow(pk.type)},0.26)`;
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(-22, -4);
+      ctx.lineTo(-6, -1.5);
+      ctx.moveTo(-18, 3.5);
+      ctx.lineTo(-5, 1.4);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, pk.type === 'heart' ? 18 : 16);
+    halo.addColorStop(0, `rgba(${getPickupGlow(pk.type)},${pk.mag ? 0.22 : 0.12})`);
+    halo.addColorStop(1, `rgba(${getPickupGlow(pk.type)},0)`);
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(0, 0, pk.type === 'heart' ? 18 : 16, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.rotate(pk._spin + Math.sin(G.totalTime * 2.4 + seed) * (pk.type === 'gold' ? 0.16 : 0.06));
+    ctx.scale(scale, scale);
+    ctx.drawImage(getPickupSprite(pk.type), -20, -20);
     ctx.restore();
   });
 
@@ -2608,78 +3055,89 @@ function render() {
   // Cinematic Wave Transition
   if (G.phase === 'waveIntro') {
     const totalDur = G.waveIntroTotal || WAVE_BREATHER_DURATION;
+    const meta = G._waveIntroMeta || buildWaveIntroMeta(G.wave);
     const t = 1 - G.waveIntroTime / totalDur; // 0→1 progress
     const fadeIn = Math.min(1, t * 4);      // 0→0.25: fade in
     const fadeOut = Math.min(1, G.waveIntroTime / 0.4); // last 0.4s: fade out
     const alpha = fadeIn * fadeOut;
+    const anchorY = Math.max(88, H * 0.24);
+    const titleY = anchorY + 42;
+    const kickerY = anchorY + 6;
+    const countdownY = anchorY - 28;
+    const subLabelY = anchorY + 82;
+    const diffBarY = anchorY + 92;
+    const countdownLabelY = anchorY + 110;
 
     ctx.save();
 
-    // Dark overlay
-    ctx.fillStyle = `rgba(0, 0, 0, ${alpha * 0.5})`;
-    ctx.fillRect(0, 0, W, H);
+    // Keep the arena readable: tint only the upper presentation band.
+    const bandBottom = Math.min(H * 0.44, anchorY + 132);
+    const bandGrad = ctx.createLinearGradient(0, 0, 0, bandBottom);
+    bandGrad.addColorStop(0, `rgba(3, 6, 14, ${alpha * 0.82})`);
+    bandGrad.addColorStop(0.52, `rgba(5, 10, 22, ${alpha * 0.42})`);
+    bandGrad.addColorStop(1, 'rgba(5, 10, 22, 0)');
+    ctx.fillStyle = bandGrad;
+    ctx.fillRect(0, 0, W, bandBottom);
 
-    // Horizontal lines expanding from center
+    // Horizontal lines expanding near the top anchor instead of through the player.
     const lineExpand = Math.min(1, t * 2.5);
-    const lineW = W * 0.7 * lineExpand;
-    const lineY1 = H / 2 - 40;
-    const lineY2 = H / 2 + 35;
+    const lineW = W * 0.46 * lineExpand;
+    const lineY1 = anchorY + 16;
+    const lineY2 = anchorY + 58;
 
     ctx.globalAlpha = alpha * 0.8;
     const lineGrad = ctx.createLinearGradient(W / 2 - lineW / 2, 0, W / 2 + lineW / 2, 0);
     lineGrad.addColorStop(0, 'transparent');
-    lineGrad.addColorStop(0.2, 'rgba(0, 206, 201, 0.8)');
-    lineGrad.addColorStop(0.5, 'rgba(255, 215, 0, 1)');
-    lineGrad.addColorStop(0.8, 'rgba(0, 206, 201, 0.8)');
+    lineGrad.addColorStop(0.2, combatAlphaColor(meta.accent, 0.8));
+    lineGrad.addColorStop(0.5, combatAlphaColor(meta.reward, 1));
+    lineGrad.addColorStop(0.8, combatAlphaColor(meta.accent, 0.8));
     lineGrad.addColorStop(1, 'transparent');
     ctx.fillStyle = lineGrad;
     ctx.fillRect(W / 2 - lineW / 2, lineY1, lineW, 2);
     ctx.fillRect(W / 2 - lineW / 2, lineY2, lineW, 2);
 
-    // Wave number — big, centered
+    // Wave number — still premium, but shifted out of the center combat lane.
     const wavePulse = 1 + Math.sin(Date.now() * 0.008) * 0.03;
     ctx.globalAlpha = alpha;
     ctx.textAlign = 'center';
-    ctx.shadowColor = '#ffd700';
-    ctx.shadowBlur = 30;
-    ctx.font = `900 ${52 * wavePulse}px 'Exo 2'`;
-    ctx.fillStyle = '#ffd700';
-    if (G.mode === 'adventure') {
-      const sn = Math.floor((G.wave - 1) / WAVES_PER_STAGE) + 1;
-      const wn = ((G.wave - 1) % WAVES_PER_STAGE) + 1;
-      ctx.fillText(`STAGE ${sn} — WAVE ${wn}`, W / 2, H / 2 + 5);
-    } else {
-      ctx.fillText(`WAVE ${G.wave}/100`, W / 2, H / 2 + 5);
-    }
+    ctx.shadowColor = meta.reward;
+    ctx.shadowBlur = 24;
+    ctx.font = `900 ${42 * wavePulse}px 'Exo 2'`;
+    ctx.fillStyle = meta.reward;
+    ctx.fillText(meta.title, W / 2, titleY);
 
     ctx.globalAlpha = alpha * 0.7;
     ctx.shadowBlur = 12;
-    ctx.shadowColor = '#9bdcff';
+    ctx.shadowColor = meta.accent;
     ctx.font = "600 12px 'JetBrains Mono'";
-    ctx.fillStyle = '#9bdcff';
-    ctx.fillText('CATCH YOUR BREATH', W / 2, H / 2 - 28);
+    ctx.fillStyle = meta.subColor;
+    ctx.fillText(meta.kicker, W / 2, kickerY);
 
-    // Enemy info
-    const diff = getDifficulty(G.wave);
-    const maxName = (typeof ENEMY_NAMES !== 'undefined' ? ENEMY_NAMES[diff.maxType] : null) || '???';
+    const countdown = Math.max(1, Math.ceil(G.waveIntroTime));
+    ctx.globalAlpha = alpha * 0.2;
+    ctx.shadowBlur = 14;
+    ctx.shadowColor = meta.reward;
+    ctx.font = "900 30px 'JetBrains Mono'";
+    ctx.fillStyle = meta.reward;
+    ctx.fillText(String(countdown), W / 2, countdownY);
 
     // Slide in from right effect
     const slideIn = Math.min(1, (t - 0.15) * 3);
     if (slideIn > 0) {
       const offsetX = (1 - slideIn) * 100;
       ctx.globalAlpha = alpha * slideIn;
-      ctx.shadowColor = '#00cec9';
+      ctx.shadowColor = meta.accent;
       ctx.shadowBlur = 10;
       ctx.font = "600 13px 'JetBrains Mono'";
-      ctx.fillStyle = '#00cec9';
-      ctx.fillText(`NEW ENEMY: ${maxName}`, W / 2 + offsetX, H / 2 + 55);
+      ctx.fillStyle = meta.accent;
+      ctx.fillText(meta.subLabel, W / 2 + offsetX, subLabelY);
 
       // Difficulty bar
       const barW = 120;
       const barH = 4;
       const barX = W / 2 - barW / 2 + offsetX;
-      const barY = H / 2 + 64;
-      const difficulty = Math.min(1, G.wave / 20);
+      const barY = diffBarY;
+      const difficulty = meta.difficulty;
 
       ctx.globalAlpha = alpha * slideIn * 0.4;
       ctx.fillStyle = 'rgba(255,255,255,0.15)';
@@ -2687,11 +3145,16 @@ function render() {
 
       ctx.globalAlpha = alpha * slideIn * 0.9;
       const diffGrad = ctx.createLinearGradient(barX, 0, barX + barW * difficulty, 0);
-      diffGrad.addColorStop(0, '#00cec9');
-      diffGrad.addColorStop(0.5, '#ffd700');
+      diffGrad.addColorStop(0, meta.accent);
+      diffGrad.addColorStop(0.5, meta.reward);
       diffGrad.addColorStop(1, '#ff4757');
       ctx.fillStyle = diffGrad;
       ctx.fillRect(barX, barY, barW * difficulty, barH);
+
+      ctx.globalAlpha = alpha * slideIn * 0.75;
+      ctx.font = "700 10px 'JetBrains Mono'";
+      ctx.fillStyle = meta.subColor;
+      ctx.fillText(`${meta.countdownLabel} T-${countdown}`, W / 2 + offsetX, countdownLabelY);
     }
 
     ctx.restore();
@@ -2835,6 +3298,42 @@ function render() {
     ctx.globalAlpha = G._screenFlash.alpha * flashT;
     ctx.fillStyle = `rgb(${rgb})`;
     ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+  }
+  if (G._weaponImpactPulse) {
+    const pulseT = Math.max(0, G._weaponImpactPulse.life / (G._weaponImpactPulse.maxLife || 0.08));
+    const px = P.x - CAM.x;
+    const py = P.y - CAM.y;
+    const radius = 54 + G._weaponImpactPulse.strength * 72;
+    const axis = Number.isFinite(P.angle) ? P.angle : 0;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const halo = ctx.createRadialGradient(px, py, radius * 0.08, px, py, radius);
+    halo.addColorStop(0, combatAlphaColor('#ffffff', (0.05 + G._weaponImpactPulse.strength * 0.04) * pulseT));
+    halo.addColorStop(0.24, combatAlphaColor(G._weaponImpactPulse.glow, (0.08 + G._weaponImpactPulse.strength * 0.12) * pulseT));
+    halo.addColorStop(1, combatAlphaColor(G._weaponImpactPulse.glow, 0));
+    ctx.fillStyle = halo;
+    ctx.fillRect(px - radius, py - radius, radius * 2, radius * 2);
+
+    ctx.translate(px, py);
+    ctx.rotate(axis);
+    ctx.strokeStyle = combatAlphaColor(G._weaponImpactPulse.accent, (0.12 + G._weaponImpactPulse.strength * 0.18) * pulseT);
+    ctx.lineWidth = G._weaponImpactPulse.killed ? 3 : 2.2;
+    const streakLen = 22 + G._weaponImpactPulse.strength * 30;
+    const streakOffset = 5 + G._weaponImpactPulse.strength * 8;
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(-streakLen, side * (streakOffset + 5));
+      ctx.lineTo(8, side * streakOffset);
+      ctx.stroke();
+    }
+    if (G._weaponImpactPulse.boss || G._weaponImpactPulse.killed) {
+      ctx.strokeStyle = combatAlphaColor(G._weaponImpactPulse.glow, (0.08 + G._weaponImpactPulse.strength * 0.12) * pulseT);
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 22 + G._weaponImpactPulse.strength * 14, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     ctx.restore();
   }
 
@@ -3098,14 +3597,94 @@ function drawMinimap(ctx) {
 
 
 console.log("ADDING LISTENERS");
+const MENU_MODE_BRIEF = {
+  arcade: {
+    kicker: 'OPERATOR BRIEF',
+    title: 'Arcade is locked for this V1 window.',
+    copy: 'Arcade remains in the roadmap, but is temporarily unavailable while we ship and stabilize Survivor on testnet.',
+    card1Label: 'RUN SHAPE',
+    card1Value: 'Locked Mode',
+    card1Copy: 'Development paused until the Survivor V1 release lane is complete and validated.',
+    card2Label: 'STATUS',
+    card2Value: 'Coming Soon',
+    card2Copy: 'Re-open after V1 testnet feedback and post-launch hardening.'
+  },
+  adventure: {
+    kicker: 'OPERATOR BRIEF',
+    title: 'Survivor is the full V1 ship path.',
+    copy: 'This is the active release lane: progression, boss escalation, and the run quality we want for first public testers.',
+    card1Label: 'RUN SHAPE',
+    card1Value: 'Campaign Lane',
+    card1Copy: 'Stage flow, boss cadence, and map identity create the core loop we are shipping now.',
+    card2Label: 'BEST FOR',
+    card2Value: 'V1 Playtests',
+    card2Copy: 'Use this path for balancing, QA evidence, and wallet/testnet score validation.'
+  }
+};
+
+function setMenuLaunchStatus(text) {
+  const statusEl = document.getElementById('menu-launch-status');
+  if (statusEl && typeof text === 'string') statusEl.textContent = text;
+}
+
+function isArcadeLocked() {
+  return true;
+}
+
+function setMenuModePreview(mode) {
+  const cfg = MENU_MODE_BRIEF[mode] || MENU_MODE_BRIEF.arcade;
+  const panel = document.getElementById('menu-mode-brief');
+  const arcadeBtn = document.getElementById('btn-arcade');
+  const adventureBtn = document.getElementById('btn-adventure');
+  if (panel) panel.dataset.mode = mode in MENU_MODE_BRIEF ? mode : 'arcade';
+  if (arcadeBtn) arcadeBtn.classList.toggle('is-mode-active', mode === 'arcade');
+  if (adventureBtn) adventureBtn.classList.toggle('is-mode-active', mode === 'adventure');
+  const textMap = {
+    'menu-brief-kicker': cfg.kicker,
+    'menu-brief-title': cfg.title,
+    'menu-brief-copy': cfg.copy,
+    'menu-brief-card-1-label': cfg.card1Label,
+    'menu-brief-card-1-value': cfg.card1Value,
+    'menu-brief-card-1-copy': cfg.card1Copy,
+    'menu-brief-card-2-label': cfg.card2Label,
+    'menu-brief-card-2-value': cfg.card2Value,
+    'menu-brief-card-2-copy': cfg.card2Copy
+  };
+  Object.entries(textMap).forEach(([id, value]) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  });
+}
+
+function wireMenuModePreview(button, mode) {
+  if (!button) return;
+  const preview = () => setMenuModePreview(mode);
+  button.addEventListener('mouseenter', preview);
+  button.addEventListener('focus', preview);
+  button.addEventListener('click', preview);
+}
+
+wireMenuModePreview(document.getElementById('btn-arcade'), 'arcade');
+wireMenuModePreview(document.getElementById('btn-adventure'), 'adventure');
+setMenuModePreview('adventure');
+setMenuLaunchStatus('Arcade mode is locked for V1. Survivor is the active release path.');
+
 document.getElementById('btn-arcade').addEventListener('click', () => {
+  if (isArcadeLocked()) {
+    setMenuModePreview('arcade');
+    setMenuLaunchStatus('Arcade is coming soon. For now, launch Survivor for V1 playtests.');
+    return;
+  }
   if (typeof startArcadeFlow === 'function') {
     startArcadeFlow();
   } else {
     startGame('arcade');
   }
 });
-document.getElementById('btn-adventure').addEventListener('click', () => startGame('adventure'));
+document.getElementById('btn-adventure').addEventListener('click', () => {
+  setMenuLaunchStatus('Launching Survivor V1 lane...');
+  startGame('adventure');
+});
 
 // Character Select buttons
 document.getElementById('btn-char-confirm').addEventListener('click', () => {
@@ -3139,6 +3718,7 @@ function devStartAtStage(stage) {
   G.mode = 'adventure';
   G.stage = stage - 1;
   initAudio();
+  if (window.MediaDirector && typeof MediaDirector.syncAudioSettings === 'function') MediaDirector.syncAudioSettings();
   document.getElementById('gm').classList.remove('dramatic');
   document.getElementById('vm').classList.remove('spectacular');
   document.querySelectorAll('.confetti-particle').forEach(e => e.remove());
@@ -3146,7 +3726,7 @@ function devStartAtStage(stage) {
   G.wave = (stage - 1) * WAVES_PER_STAGE;
   G.gold = 30 + stage * 50; G.kills = 0; G.phase = 'wave'; G.prevPhase = null;
   G.boss = null; G.bossKey = null; G.freezeTime = 0; G.totalTime = 0; G.combo = 0; G.comboTimer = 0; G.maxCombo = 0; G.spawnCd = 0;
-  G.waveIntroTime = 0; G.waveIntroTotal = 0; G.pendingLevelUps = 0; G._screenFlash = null;
+  G.waveIntroTime = 0; G.waveIntroTotal = 0; G.pendingLevelUps = 0; G._screenFlash = null; G._weaponImpactPulse = null; G._waveIntroMeta = null;
   G._recentSpawnTypes = [];
   G.totalDmgDealt = 0; G.totalDmgTaken = 0; G.totalGoldEarned = 0; G.bossesKilled = 0;
   G.dpsHistory = []; G.dpsAccum = 0; G.dpsTimer = 0; G.currentDPS = 0; G.lastMilestone = 0;
@@ -3154,11 +3734,12 @@ function devStartAtStage(stage) {
   P.x = WORLD_W / 2; P.y = WORLD_H / 2;
   P.level = 5 + stage * 3; P.maxHp = 100 + stage * 40; P.hp = P.maxHp;
   P.spd = 220 + stage * 10; P.armor = stage; P.crit = 5 + stage * 2; P.kbMult = 1; P.dodge = 0;
-  P.xp = 0; P.xpNext = 50; P.weapons = [{ id: 'pistol', level: 1, cd: 0 }];
+  P.xp = 0; P.xpNext = typeof getXpThreshold === 'function' ? getXpThreshold(P.level) : 50; P.weapons = [{ id: 'pistol', level: 1, cd: 0 }];
   P._turrets = []; P._swingAngle = 0; P._orbitalDetachCd = 0;
   P.iframes = 0; P.dmgMult = 1 + stage * 0.1; P.cdMult = 1; P.magnetRange = 100;
   P.leverage = 1; P.leverageIdx = 0; P.dashCd = 0; P.dashTimer = 0; P.dashing = false; P.animTimer = 0;
   P.vx = 0; P.vy = 0; P.kbX = 0; P.kbY = 0;
+  P._hitPulse = 0; P._hitPulseMax = 0; P._hitSeverity = 0; P._hitDirX = 0; P._hitDirY = -1;
   CAM.x = P.x - W / 2; CAM.y = P.y - H / 2;
   enemies.clear(); projs.clear(); pickups.clear(); hazards.clear(); dmgNums.length = 0; particles.length = 0;
   godCandles.length = 0; afterimages.length = 0; _hpDisplay = 100; _xpDisplay = 0;
@@ -3173,17 +3754,177 @@ function devStartAtStage(stage) {
     requestAnimationFrame(loop);
   });
 }
+
+function devStartBossAtStage(stage) {
+  const targetStage = Math.max(1, Math.floor(stage || 1));
+  G.mode = 'adventure';
+  G.stage = targetStage - 1;
+  initAudio();
+  if (window.MediaDirector && typeof MediaDirector.syncAudioSettings === 'function') MediaDirector.syncAudioSettings();
+  document.getElementById('gm').classList.remove('dramatic');
+  document.getElementById('vm').classList.remove('spectacular');
+  document.querySelectorAll('.confetti-particle').forEach(e => e.remove());
+  clearDamageFlash();
+  G.wave = targetStage * WAVES_PER_STAGE;
+  G.gold = 30 + targetStage * 50;
+  G.kills = 0;
+  G.phase = 'wave';
+  G.prevPhase = null;
+  G.boss = null;
+  G.bossKey = null;
+  G.freezeTime = 0;
+  G.totalTime = 0;
+  G.combo = 0;
+  G.comboTimer = 0;
+  G.maxCombo = 0;
+  G.spawnCd = 0;
+  G.waveIntroTime = 0;
+  G.waveIntroTotal = 0;
+  G.pendingLevelUps = 0;
+  G._screenFlash = null;
+  G._weaponImpactPulse = null;
+  G._waveIntroMeta = null;
+  G._recentSpawnTypes = [];
+  G.totalDmgDealt = 0;
+  G.totalDmgTaken = 0;
+  G.totalGoldEarned = 0;
+  G.bossesKilled = Math.max(0, targetStage - 1);
+  G.dpsHistory = [];
+  G.dpsAccum = 0;
+  G.dpsTimer = 0;
+  G.currentDPS = 0;
+  G.lastMilestone = 0;
+  G.maxStageReached = targetStage - 1;
+  P.x = WORLD_W / 2;
+  P.y = WORLD_H / 2;
+  P.level = 5 + targetStage * 3;
+  P.maxHp = 100 + targetStage * 40;
+  P.hp = P.maxHp;
+  P.spd = 220 + targetStage * 10;
+  P.armor = targetStage;
+  P.crit = 5 + targetStage * 2;
+  P.kbMult = 1;
+  P.dodge = 0;
+  P.xp = 0;
+  P.xpNext = typeof getXpThreshold === 'function' ? getXpThreshold(P.level) : 50;
+  P.weapons = [{ id: 'pistol', level: 1, cd: 0 }];
+  P._turrets = [];
+  P._swingAngle = 0;
+  P._orbitalDetachCd = 0;
+  P.iframes = 0;
+  P.dmgMult = 1 + targetStage * 0.1;
+  P.cdMult = 1;
+  P.magnetRange = 100;
+  P.leverage = 1;
+  P.leverageIdx = 0;
+  P.dashCd = 0;
+  P.dashTimer = 0;
+  P.dashing = false;
+  P.animTimer = 0;
+  P.vx = 0;
+  P.vy = 0;
+  P.kbX = 0;
+  P.kbY = 0;
+  P._hitPulse = 0;
+  P._hitPulseMax = 0;
+  P._hitSeverity = 0;
+  P._hitDirX = 0;
+  P._hitDirY = -1;
+  CAM.x = P.x - W / 2;
+  CAM.y = P.y - H / 2;
+  enemies.clear();
+  projs.clear();
+  pickups.clear();
+  hazards.clear();
+  dmgNums.length = 0;
+  particles.length = 0;
+  godCandles.length = 0;
+  afterimages.length = 0;
+  _hpDisplay = 100;
+  _xpDisplay = 0;
+  document.querySelectorAll('.mo').forEach(m => m.classList.add('h'));
+  document.getElementById('mm').classList.add('h');
+  document.getElementById('boss-intro').classList.add('h');
+  document.getElementById('milestone-banner').classList.add('h');
+  resetMissions();
+  resetUltimate();
+  resetMarketEvents();
+  resetIntensity();
+  resetCharacterAnim();
+  hideLevelUpUI();
+  cinematicPlayed = true;
+  startBossIntro();
+  lastT = performance.now();
+  requestAnimationFrame(loop);
+}
+
+function getDebugLaunchConfig() {
+  if (typeof window === 'undefined' || !window.location) return null;
+  const params = new URLSearchParams(window.location.search || '');
+  const stageRaw = params.get('devStage');
+  const bossRaw = params.get('devBoss');
+  if (!stageRaw && !bossRaw) return null;
+  const stage = Math.max(1, parseInt(stageRaw || '1', 10) || 1);
+  const boss = bossRaw === '1' || bossRaw === 'true' || bossRaw === 'boss';
+  return { stage, boss };
+}
+
+function maybeRunDebugLaunch() {
+  const cfg = getDebugLaunchConfig();
+  if (!cfg) return;
+  const run = () => {
+    if (cfg.boss) devStartBossAtStage(cfg.stage);
+    else devStartAtStage(cfg.stage);
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', run, { once: true });
+  } else {
+    setTimeout(run, 0);
+  }
+}
+
+window.devStartBossAtStage = devStartBossAtStage;
+window.getDebugLaunchConfig = getDebugLaunchConfig;
+maybeRunDebugLaunch();
 document.getElementById('btn-next-stage').addEventListener('click', () => {
   if (G.phase === 'shop') {
     closePersistentShop();
   }
 });
 document.getElementById('btn-retry').addEventListener('click', () => startGame(G.mode));
-document.getElementById('btn-menu').addEventListener('click', () => { stopMusic(); document.querySelectorAll('.mo').forEach(m => m.classList.add('h')); document.getElementById('mm').classList.remove('h'); updateMenuHighscores(); });
-document.getElementById('btn-vmenu').addEventListener('click', () => { document.querySelectorAll('.mo').forEach(m => m.classList.add('h')); document.getElementById('mm').classList.remove('h'); updateMenuHighscores(); });
+document.getElementById('btn-menu').addEventListener('click', () => {
+  stopMusic();
+  document.querySelectorAll('.mo').forEach(m => m.classList.add('h'));
+  document.getElementById('mm').classList.remove('h');
+  setMenuModePreview('adventure');
+  setMenuLaunchStatus('Arcade mode is locked for V1. Survivor is the active release path.');
+  initAudio();
+  startMusic();
+  updateMenuHighscores();
+});
+document.getElementById('btn-vmenu').addEventListener('click', () => {
+  document.querySelectorAll('.mo').forEach(m => m.classList.add('h'));
+  document.getElementById('mm').classList.remove('h');
+  setMenuModePreview('adventure');
+  setMenuLaunchStatus('Arcade mode is locked for V1. Survivor is the active release path.');
+  initAudio();
+  startMusic();
+  updateMenuHighscores();
+});
 // Pause menu buttons
 document.getElementById('btn-resume').addEventListener('click', resumeGame);
-document.getElementById('btn-quit').addEventListener('click', () => { stopMusic(); G.phase = 'menu'; G.prevPhase = null; document.querySelectorAll('.mo').forEach(m => m.classList.add('h')); document.getElementById('mm').classList.remove('h'); updateMenuHighscores(); });
+document.getElementById('btn-quit').addEventListener('click', () => {
+  stopMusic();
+  G.phase = 'menu';
+  G.prevPhase = null;
+  document.querySelectorAll('.mo').forEach(m => m.classList.add('h'));
+  document.getElementById('mm').classList.remove('h');
+  setMenuModePreview('adventure');
+  setMenuLaunchStatus('Arcade mode is locked for V1. Survivor is the active release path.');
+  initAudio();
+  startMusic();
+  updateMenuHighscores();
+});
 const _pauseRangeBtn = document.getElementById('btn-range-pause');
 if (_pauseRangeBtn) _pauseRangeBtn.addEventListener('click', () => { if (typeof showBulletPreview === 'function') showBulletPreview(); });
 const _mainRangeBtn = document.getElementById('btn-range-main');
