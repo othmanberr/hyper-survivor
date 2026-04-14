@@ -82,10 +82,6 @@
             <span class="hl-segment-label" id="hud-mode-kicker">ADVENTURE</span>
             <span class="hl-wave" id="stage-info">1/100</span>
           </div>
-          <div class="hl-segment hl-segment-level">
-            <span class="hl-segment-label">LEVEL</span>
-            <span class="hl-lv" id="lvl">LV 1</span>
-          </div>
           <div class="hl-segment hl-segment-time">
             <span class="hl-segment-label">FLOW</span>
             <span class="hl-time" id="wave-timer">0:30</span>
@@ -106,15 +102,6 @@
           </div>
         </div>
         <div class="hud-subline">
-          <div class="hl-sub-chip hl-sub-chip-xp">
-            <span class="hl-sub-label">XP</span>
-            <div class="hl-xp">
-              <div class="hl-xp-track">
-                <div class="hl-xp-fill" id="xpb"></div>
-              </div>
-            </div>
-            <span class="hl-sub-value" id="xp-meta">0 / 50 XP</span>
-          </div>
           <div class="hl-sub-chip">
             <span class="hl-sub-label">KILLS</span>
             <span class="hl-sub-value" id="hud-kill-corner-val">0</span>
@@ -209,7 +196,6 @@
             <div class="menu-controls pause-controls">
               <span>ESC</span> resume
               <span>B</span> shop
-              <span>SPACE</span> dash ready
             </div>
           </div>
         </div>
@@ -289,24 +275,13 @@
     <div class="mo" id="mm">
       <canvas id="menu-bg" class="menu-bg-canvas"></canvas>
 
-      <!-- Floating particles layer -->
-      <div class="mm-particles" id="menu-particles"></div>
-
-      <!-- Scanlines overlay -->
-      <div class="mm-scanlines"></div>
-
-      <!-- Vignette overlay -->
-      <div class="mm-vignette"></div>
-
       <!-- Settings button (top-left) -->
       <button class="mm-settings-top" id="btn-settings-main">⚙ SETTINGS</button>
+      <button class="mm-hud-btn mm-hud-btn-gold mm-leaderboard-top" id="btn-leaderboard"><span class="ico-trophy"></span>
+        LEADERBOARD</button>
 
       <!-- Hero Content -->
       <div class="mm-hero">
-        <div class="mm-prep-strip">
-          <span class="mm-prep-label">PICK YOUR RUN</span>
-        </div>
-
         <div class="mm-stage">
           <div class="mm-main-column">
             <!-- Title block -->
@@ -317,7 +292,6 @@
               <div class="mm-title-line mm-title-line-2">
                 <span class="mm-title-survivor" data-text="SURVIVOR">SURVIVOR</span>
               </div>
-              <div class="mm-tagline">SURVIVE THE MARKET <span class="mm-tagline-dot">·</span> CONQUER THE CHAIN</div>
             </div>
 
             <!-- Mode Selection -->
@@ -329,7 +303,6 @@
                 <div class="mm-mode-sep"></div>
                 <div class="mm-mode-desc">100 waves · No bosses · Pure grind</div>
                 <div class="mm-mode-meta">Quick pressure test · fastest reruns</div>
-                <div class="mm-mode-arrow">🔓</div>
               </button>
               <button class="mm-mode-card mm-mode-adventure is-locked" id="btn-adventure" data-mode="adventure" aria-disabled="true">
                 <div class="mm-mode-glow"></div>
@@ -339,7 +312,6 @@
                 <div class="mm-mode-sep"></div>
                 <div class="mm-mode-desc">Temporarily locked while Survivor V1 ships.</div>
                 <div class="mm-mode-meta">Planned return after V1 stabilization</div>
-                <div class="mm-mode-arrow">🔒</div>
               </button>
             </div>
           </div>
@@ -349,14 +321,11 @@
         <div class="mm-bottom-bar">
           <div class="mm-bottom-left">
             <span class="mm-ctrl"><kbd>WASD</kbd> move</span>
-            <span class="mm-ctrl"><kbd>SPACE</kbd> dash</span>
             <span class="mm-ctrl"><kbd>B</kbd> shop</span>
             <span class="mm-ctrl"><kbd>R</kbd> ult</span>
             <span class="mm-ctrl"><kbd>ESC</kbd> pause</span>
           </div>
           <div class="mm-bottom-center">
-            <button class="mm-hud-btn mm-hud-btn-gold" id="btn-leaderboard"><span class="ico-trophy"></span>
-              LEADERBOARD</button>
           </div>
           <div class="mm-bottom-right">
             <span class="mm-version">v1 candidate</span>

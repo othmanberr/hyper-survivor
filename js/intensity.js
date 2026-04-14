@@ -389,8 +389,9 @@ function updateIntensity(dt) {
 }
 
 function renderIntensityWorld(ctx) {
-    renderPlayerAura(ctx);
-    renderNeonTrail(ctx);
+    // Disabled for V1 readability: no ring/line visual attached to player.
+    // Keep update systems alive in case we re-enable after launch.
+    return;
 }
 
 function renderIntensityScreen(ctx) {

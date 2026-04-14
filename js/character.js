@@ -67,6 +67,18 @@ const CHAR_DATA = {
         hasShoot: false, hasHurt: false,
         victoryAnims: ['tiny_flex'],
         victoryFrames: {}, victoryReady: false
+    },
+    mage: {
+        sprites: {}, idleReady: false, walkReady: false, shootReady: false, hurtReady: false,
+        hurtShared: null, drawHeight: 100, animFrames: 6, walkFramesPerDir: 6,
+        path: 'assets/player/mage/',
+        walkDirs: ['south', 'north', 'west', 'east', 'south-east', 'north-west', 'north-east', 'south-west'],
+        walkMirror: {},
+        shootDirs: [],
+        shootMirror: {},
+        hasShoot: false, hasHurt: false,
+        victoryAnims: ['arcane_burst'],
+        victoryFrames: {}, victoryReady: false
     }
 };
 

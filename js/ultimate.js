@@ -237,83 +237,7 @@ function resetUltimate() {
 // ============ MARKET EVENTS SYSTEM ============
 // Random events that change gameplay for a short duration
 
-const MARKET_EVENTS = [
-    {
-        id: 'bullRun',
-        name: '📈 BULL RUN',
-        desc: '2x Gold • 1.5x Speed',
-        duration: 15,
-        color: '#2ed573',
-        onStart() { P.spd *= 1.5; },
-        onEnd() { P.spd /= 1.5; },
-        modGold: 2
-    },
-    {
-        id: 'bearMarket',
-        name: '📉 BEAR MARKET',
-        desc: 'Enemies +50% Speed',
-        duration: 12,
-        color: '#ff4757',
-        onStart() { },
-        onEnd() { },
-        modEnemySpd: 1.5
-    },
-    {
-        id: 'flashCrash',
-        name: '⚡ FLASH CRASH',
-        desc: 'Random Explosions!',
-        duration: 8,
-        color: '#ffa502',
-        onStart() {
-            // Explode random enemies
-            let count = 0;
-            enemies.each(e => {
-                if (!e.active || count >= 8) return;
-                if (Math.random() < 0.4) {
-                    e.hp = 0;
-                    enemyDeath(e);
-                    fxEnemyDeath(e.x, e.y, '#ffa502');
-                    count++;
-                }
-            });
-            triggerShake(15, 0.5);
-            playSound('bassDrop');
-        },
-        onEnd() { }
-    },
-    {
-        id: 'airdrop',
-        name: '🪂 AIRDROP INCOMING',
-        desc: 'Raining Gold & HP!',
-        duration: 6,
-        color: '#7c4dff',
-        onStart() {
-            // Spawn a bunch of pickups around the player
-            for (let i = 0; i < 20; i++) {
-                const p = pickups.get();
-                if (p) {
-                    p.x = P.x + (Math.random() - 0.5) * 500;
-                    p.y = P.y + (Math.random() - 0.5) * 500;
-                    p.type = Math.random() < 0.3 ? 'heart' : 'gold';
-                    p.val = p.type === 'heart' ? 20 : 10 + Math.floor(Math.random() * 15);
-                    p.mag = false;
-                    p.active = true;
-                }
-            }
-            playSound('airhorn');
-        },
-        onEnd() { }
-    },
-    {
-        id: 'whaleEntry',
-        name: '🐋 WHALE SPOTTED',
-        desc: '3x Damage for 10s!',
-        duration: 10,
-        color: '#00d2d3',
-        onStart() { P.dmgMult *= 3; },
-        onEnd() { P.dmgMult /= 3; },
-    }
-];
+const MARKET_EVENTS = [];
 
 const MKT = {
     active: null,       // current event object
@@ -323,6 +247,7 @@ const MKT = {
 };
 
 function triggerMarketEvent() {
+    if (!Array.isArray(MARKET_EVENTS) || MARKET_EVENTS.length === 0) return;
     if (MKT.active) return;
     const evt = MARKET_EVENTS[Math.floor(Math.random() * MARKET_EVENTS.length)];
     MKT.active = { ...evt };
@@ -344,6 +269,7 @@ function triggerMarketEvent() {
 }
 
 function updateMarketEvents(dt) {
+    if (!Array.isArray(MARKET_EVENTS) || MARKET_EVENTS.length === 0) return;
     if (MKT.active) {
         MKT.timer -= dt;
         MKT.bannerTimer -= dt;

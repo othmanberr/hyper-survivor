@@ -1,17 +1,7 @@
 // ============ VAMPIRE SURVIVORS STYLE LEVEL-UP SYSTEM ============
 // With Evolution mechanic at max weapon level
 
-const LEVEL_UP_POOL = [
-  // Weapons (base weapons only, excluding pistol = starting weapon)
-  { id: 'new_shotgun', type: 'weapon', weaponId: 'shotgun', name: 'Shotgun', icon: '', desc: 'Close-range scatter', rarity: 'common', weight: 10 },
-  { id: 'new_smg', type: 'weapon', weaponId: 'smg', name: 'SMG', icon: '', desc: 'Rapid-fire spray', rarity: 'common', weight: 8 },
-  { id: 'new_crossbow', type: 'weapon', weaponId: 'crossbow', name: 'Rail Spiker', icon: '', desc: 'Heavy piercing spikes', rarity: 'rare', weight: 8 },
-  { id: 'new_katana', type: 'weapon', weaponId: 'redcandle', name: 'Mono Katana', icon: '', desc: 'Fast arc blade', rarity: 'rare', weight: 7 },
-  { id: 'new_flamethrower', type: 'weapon', weaponId: 'flamethrower', name: 'Flamethrower', icon: '', desc: 'Short-range fire cone', rarity: 'rare', weight: 7 },
-  { id: 'new_firewall', type: 'weapon', weaponId: 'firewallLauncher', name: 'Firewall Launcher', icon: '', desc: 'Burning denial zones', rarity: 'rare', weight: 7 },
-  { id: 'new_grenade', type: 'weapon', weaponId: 'grenadeLauncher', name: 'Grenade Launcher', icon: '', desc: 'Arcing splash burst', rarity: 'epic', weight: 6 },
-  { id: 'new_axe', type: 'weapon', weaponId: 'axe', name: 'Throwing Axe', icon: '', desc: 'Spinning axe', rarity: 'epic', weight: 6 },
-];
+const LEVEL_UP_POOL = [];
 
 const LEVEL_UP_AUTO_RARITY_SCORE = {
   legendary: 60,
@@ -37,68 +27,8 @@ function generateLevelUpChoices(P, WEAPONS, count) {
   const pool = [];
   const statChoices = typeof buildPlayerLevelUpChoices === 'function' ? buildPlayerLevelUpChoices() : [];
 
-  for (const item of LEVEL_UP_POOL) {
-    // Skip weapons player already has
-    if (item.type === 'weapon' && P.weapons.find(w => w.id === item.weaponId)) continue;
-    // Skip new weapons if at max
-    if (item.type === 'weapon' && P.weapons.length >= P.maxWeapons) continue;
-
-    // Use the dynamically generated pixel art icon for weapons
-    let poolItem = item;
-    if (item.type === 'weapon' && typeof WEAPONS !== 'undefined' && WEAPONS[item.weaponId]) {
-      if (WEAPONS[item.weaponId].hidden) continue;
-      poolItem = { ...item, icon: WEAPONS[item.weaponId].icon };
-    }
-
-    // Add with weight
-    for (let i = 0; i < item.weight; i++) pool.push(poolItem);
-  }
-
   for (const item of statChoices) {
     for (let i = 0; i < item.weight; i++) pool.push(item);
-  }
-
-  // Add weapon level ups for owned weapons
-  for (const w of P.weapons) {
-    const def = WEAPONS[w.id];
-    if (!def) continue;
-    if (def.hidden) continue;
-
-    if (w.level < 8) {
-      const upgradeDesc = typeof getWeaponUpgradeSummary === 'function'
-        ? getWeaponUpgradeSummary(w.id, w.level, w.level + 1)
-        : '+20% damage';
-      const upgrade = {
-        id: `upgrade_${w.id}`,
-        type: 'weaponUpgrade',
-        weaponId: w.id,
-        name: `${def.name} Lv${w.level + 1}`,
-        icon: def.icon,
-        desc: upgradeDesc,
-        rarity: w.level >= 5 ? 'epic' : w.level >= 3 ? 'rare' : 'common',
-        weight: 8,
-      };
-      for (let i = 0; i < upgrade.weight; i++) pool.push(upgrade);
-    }
-
-    // Evolution: weapon at max level + has evolution path + not already evolved
-    if (w.level >= 8 && def.evolvesTo && !w.evolved) {
-      const evoDef = WEAPONS[def.evolvesTo];
-      if (evoDef) {
-        const evo = {
-          id: `evolve_${w.id}`,
-          type: 'evolution',
-          weaponId: w.id,
-          evoId: def.evolvesTo,
-          name: `⬆ ${evoDef.name}`,
-          icon: evoDef.icon,
-          desc: evoDef.desc,
-          rarity: 'legendary',
-          weight: 20, // High weight — evolution should appear frequently when available
-        };
-        for (let i = 0; i < evo.weight; i++) pool.push(evo);
-      }
-    }
   }
 
   // Weighted random selection without duplicates
@@ -120,26 +50,8 @@ function generateLevelUpChoices(P, WEAPONS, count) {
 }
 
 function applyLevelUpChoice(choice, P, WEAPONS) {
-  if (choice.type === 'weapon') {
-    P.weapons.push({ id: choice.weaponId, level: 1, cd: 0 });
-  } else if (choice.type === 'weaponUpgrade') {
-    const w = P.weapons.find(w => w.id === choice.weaponId);
-    if (w) w.level++;
-  } else if (choice.type === 'evolution') {
-    const w = P.weapons.find(w => w.id === choice.weaponId);
-    if (w) {
-      w.id = choice.evoId;
-      w.evolved = true;
-      w.level = 1; // Reset level for evolved weapon
-      w.cd = 0;
-      // VFX
-      playSound('levelup');
-      triggerSlowmo(0.15, 0.5);
-      triggerShake(10, 0.3);
-      fxEvolution(P.x, P.y);
-      showEvolutionBanner(WEAPONS[choice.evoId].name);
-    }
-  } else if (choice.type === 'stat' && choice.skillId && typeof applyPlayerSkillUpgrade === 'function') {
+  // Survivor V1: only stat upgrades via level-up. Weapons are shop-only.
+  if (choice.type === 'stat' && choice.skillId && typeof applyPlayerSkillUpgrade === 'function') {
     applyPlayerSkillUpgrade(P, choice.skillId, 'levelup');
   } else if (choice.type === 'stat' && choice.apply) {
     choice.apply(P);

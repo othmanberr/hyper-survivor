@@ -19,12 +19,6 @@ function updateHUD() {
         DOM.hudShell.dataset.combatMode = combatMode;
     }
 
-    // Lerp XP bar
-    const xpTarget = Math.min(100, P.xp / P.xpNext * 100);
-    window._xpDisplay = (window._xpDisplay || 0) + (xpTarget - (window._xpDisplay || 0)) * 0.12;
-    if (Math.abs(window._xpDisplay - xpTarget) < 0.3) window._xpDisplay = xpTarget;
-    if (DOM.xpb) DOM.xpb.style.width = `${window._xpDisplay}%`;
-    if (DOM.xpMeta) DOM.xpMeta.textContent = `${Math.floor(P.xp)} / ${P.xpNext} XP`;
     if (DOM.hudModeKicker) DOM.hudModeKicker.textContent = G.mode === 'arcade' ? 'SURVIVAL' : 'ADVENTURE';
     if (DOM.hudKillCornerVal) DOM.hudKillCornerVal.textContent = G.kills;
     if (DOM.hudFlowState) {

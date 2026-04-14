@@ -59,7 +59,6 @@ window.addEventListener('keydown', e => {
     if (k === 'd' || k === 'arrowright') inp.r = 1;
     if (k === 'w' || k === 'arrowup') inp.u = 1;
     if (k === 's' || k === 'arrowdown') inp.d = 1;
-    if (k === ' ') { inp.dash = 1; e.preventDefault(); }
     if (k === 'e') inp.levUp = 1;
     if (k === 'q') inp.levDown = 1;
     if (k === 'r') { if (typeof activateUltimate === 'function') activateUltimate(); }
@@ -74,7 +73,6 @@ window.addEventListener('keyup', e => {
     if (k === 'd' || k === 'arrowright') inp.r = 0;
     if (k === 'w' || k === 'arrowup') inp.u = 0;
     if (k === 's' || k === 'arrowdown') inp.d = 0;
-    if (k === ' ') inp.dash = 0;
     if (k === 'e') inp.levUp = 0;
     if (k === 'q') inp.levDown = 0;
 });

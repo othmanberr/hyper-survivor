@@ -11,7 +11,6 @@ function renderPauseOverlay() {
   const stageNum = Math.floor((Math.max(1, G.wave) - 1) / wps) + 1;
   const waveInStage = ((Math.max(1, G.wave) - 1) % wps) + 1;
   const hpRatio = P.maxHp > 0 ? P.hp / P.maxHp : 1;
-  const runStatus = hpRatio <= 0.3 ? 'CRITICAL' : hpRatio <= 0.68 ? 'PRESSURED' : 'STABLE';
   const phaseLabel = G.phase === 'boss' ? 'BOSS LIVE' : G.phase === 'milestone' ? 'MILESTONE' : 'WAVE LIVE';
   const pauseKicker = document.getElementById('pause-kicker');
   const pauseSub = document.getElementById('pause-sub');
@@ -23,23 +22,8 @@ function renderPauseOverlay() {
       : `STAGE ${stageNum} — ${waveInStage}/${wps} · ${phaseLabel} · ${formatTime(G.totalTime)}`;
   }
   if (pauseBrief) {
-    const directive = hpRatio <= 0.3
-      ? 'Find breathing room before re-engaging.'
-      : G.phase === 'boss'
-        ? 'Read the tell, keep the lane clean, then commit.'
-        : G.combo >= 12
-          ? 'You have tempo. Push the wave while the combo is alive.'
-          : 'Reset cleanly, then rebuild pressure with the next pickup cluster.';
-    pauseBrief.innerHTML = `
-      <div class="pause-brief-kicker">TACTICAL READ</div>
-      <div class="pause-brief-status">${runStatus}</div>
-      <div class="pause-brief-copy">${directive}</div>
-      <div class="pause-brief-meta">
-        <span>HP ${Math.ceil(P.hp)}/${P.maxHp}</span>
-        <span>${G.kills} kills</span>
-        <span>${P.leverage}x lev</span>
-      </div>
-    `;
+    pauseBrief.innerHTML = '';
+    pauseBrief.style.display = 'none';
   }
   const pw = document.getElementById('pause-weapons');
   pw.innerHTML = P.weapons.map(w => {
@@ -56,10 +40,7 @@ function renderPauseOverlay() {
     <div class="pause-stat"><div class="pause-stat-val">${formatTime(G.totalTime)}</div><div class="pause-stat-lbl">Time</div></div>
     <div class="pause-stat"><div class="pause-stat-val">${Math.ceil(P.hp)}/${P.maxHp}</div><div class="pause-stat-lbl">HP</div></div>
     <div class="pause-stat"><div class="pause-stat-val">${G.gold}</div><div class="pause-stat-lbl">Gold</div></div>
-    <div class="pause-stat"><div class="pause-stat-val">LV ${P.level}</div><div class="pause-stat-lbl">Level</div></div>
-    <div class="pause-stat"><div class="pause-stat-val">${G.maxCombo}x</div><div class="pause-stat-lbl">Best Combo</div></div>
     <div class="pause-stat"><div class="pause-stat-val">${avgDPS}</div><div class="pause-stat-lbl">DPS</div></div>
-    <div class="pause-stat"><div class="pause-stat-val">${P.leverage}x</div><div class="pause-stat-lbl">Leverage</div></div>
   `;
 
   const skillBar = document.getElementById('pause-skill-bar');
@@ -120,7 +101,6 @@ const DOM = {
   waveInfo: document.getElementById('wave-info'),
   waveTimer: document.getElementById('wave-timer'),
   hpState: document.getElementById('hud-hp-state'),
-  xpMeta: document.getElementById('xp-meta'),
   hudModeKicker: document.getElementById('hud-mode-kicker'),
   hudKillCornerVal: document.getElementById('hud-kill-corner-val'),
   hudFlowState: document.getElementById('hud-flow-state'),
@@ -132,7 +112,6 @@ const DOM = {
   bossBarContainer: document.querySelector('.boss-bar-container'),
   bossBarFill: document.getElementById('boss-bar-fill'),
   bossBarHp: document.getElementById('boss-bar-hp'),
-  xpb: document.getElementById('xpb'),
 };
 let lastT = 0;
 
@@ -500,7 +479,7 @@ const BUILDING_LEFT = Math.round(WORLD_W * 0.22);
 const BUILDING_RIGHT = Math.round(WORLD_W * 0.78);
 const BUILDING_TOP = Math.round(WORLD_H * 0.15);
 const BUILDING_BOTTOM = Math.round(WORLD_H * 0.85);
-const WAVE_BREATHER_DURATION = 3.0;
+const WAVE_BREATHER_DURATION = 0.0;
 const WAVE_BREATHER_SPAWN_GRACE = 0.35;
 const WAVE_BREATHER_PICKUP_SPEED = 960;
 const HEART_MAGNET_RANGE = 110;
@@ -850,14 +829,26 @@ function _doStartWave() {
   G.waveTime = G.waveMaxTime;
   G.spawnCd = WAVE_BREATHER_SPAWN_GRACE;
   clearInterWaveThreats();
-  G._waveIntroMeta = buildWaveIntroMeta(G.wave);
+  const introMeta = buildWaveIntroMeta(G.wave);
+  G._waveIntroMeta = introMeta;
   if (window.MediaDirector && typeof MediaDirector.beginWave === 'function') MediaDirector.beginWave();
   else if (typeof startMusic === 'function') startMusic();
 
-  // Show wave intro banner
-  G.phase = 'waveIntro';
-  G.waveIntroTime = WAVE_BREATHER_DURATION;
-  G.waveIntroTotal = WAVE_BREATHER_DURATION;
+  if (WAVE_BREATHER_DURATION > 0) {
+    // Optional wave intro banner
+    G.phase = 'waveIntro';
+    G.waveIntroTime = WAVE_BREATHER_DURATION;
+    G.waveIntroTotal = WAVE_BREATHER_DURATION;
+  } else {
+    // Instant wave handoff (no perceived freeze between waves).
+    G.phase = 'wave';
+    G.waveIntroTime = 0;
+    G.waveIntroTotal = 0;
+    P.iframes = Math.max(P.iframes || 0, 0.16);
+    emitWaveTransitionFx('start', { accent: introMeta.accent, secondary: introMeta.reward, x: P.x, y: P.y });
+    playSound('waveStart');
+    G._waveIntroMeta = null;
+  }
   document.getElementById('boss-bar').classList.add('h');
 }
 
@@ -1994,93 +1985,8 @@ function drawEnemyFrameBlend(ctx, current, next, blend) {
 }
 
 function drawEnemyTelegraph(ctx, e) {
-  const tele = e._telegraph;
-  if (!tele) return;
-  const data = tele.data || {};
-  const progress = 1 - Math.max(0, tele.timer) / Math.max(0.001, tele.duration || 0.2);
-  const pulse = 0.7 + Math.sin(G.totalTime * 18 + (e._motionSeed || 0)) * 0.3;
-  const alpha = Math.min(0.92, 0.24 + progress * 0.56) * pulse;
-  const color = data.color || (e._threatColor || '#ff7777');
-  const accent = combatAlphaColor(color, alpha);
-  ctx.save();
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
-  if (tele.kind === 'dash') {
-    ctx.translate(data.x !== undefined ? data.x : e.x, data.y !== undefined ? data.y : e.y);
-    ctx.rotate(data.angle || 0);
-    const len = data.length || 120;
-    ctx.strokeStyle = accent;
-    ctx.fillStyle = combatAlphaColor(color, alpha * 0.18);
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(len, 0);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(0, -12);
-    ctx.lineTo(len, -6);
-    ctx.lineTo(len, 6);
-    ctx.lineTo(0, 12);
-    ctx.closePath();
-    ctx.fill();
-  } else if (tele.kind === 'fan') {
-    ctx.translate(data.x !== undefined ? data.x : e.x, data.y !== undefined ? data.y : e.y);
-    ctx.rotate(data.angle || 0);
-    const len = data.length || 110;
-    const spread = data.spread || 0.3;
-    ctx.strokeStyle = accent;
-    ctx.fillStyle = combatAlphaColor(color, alpha * 0.14);
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(Math.cos(-spread * 0.5) * len, Math.sin(-spread * 0.5) * len);
-    ctx.lineTo(Math.cos(spread * 0.5) * len, Math.sin(spread * 0.5) * len);
-    ctx.closePath();
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(Math.cos(-spread * 0.5) * len, Math.sin(-spread * 0.5) * len);
-    ctx.moveTo(0, 0);
-    ctx.lineTo(Math.cos(spread * 0.5) * len, Math.sin(spread * 0.5) * len);
-    ctx.stroke();
-  } else if (tele.kind === 'ring') {
-    ctx.translate(data.x !== undefined ? data.x : e.x, data.y !== undefined ? data.y : e.y);
-    const radius = data.radius || 42;
-    ctx.strokeStyle = accent;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(0, 0, radius, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.fillStyle = combatAlphaColor(color, alpha * 0.1);
-    ctx.beginPath();
-    ctx.arc(0, 0, radius * 0.7, 0, Math.PI * 2);
-    ctx.fill();
-  } else if (tele.kind === 'target') {
-    const tx = data.targetX !== undefined ? data.targetX : e.x;
-    const ty = data.targetY !== undefined ? data.targetY : e.y;
-    const radius = data.radius || 28;
-    if (data.sourceX !== undefined && data.sourceY !== undefined) {
-      ctx.strokeStyle = combatAlphaColor(color, alpha * 0.7);
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(data.sourceX, data.sourceY);
-      ctx.lineTo(tx, ty);
-      ctx.stroke();
-    }
-    ctx.translate(tx, ty);
-    ctx.strokeStyle = accent;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(0, 0, radius, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(-radius * 0.7, 0);
-    ctx.lineTo(radius * 0.7, 0);
-    ctx.moveTo(0, -radius * 0.7);
-    ctx.lineTo(0, radius * 0.7);
-    ctx.stroke();
-  }
-  ctx.restore();
+  // V1 visual cleanup: hide enemy ring/line telegraphs.
+  return;
 }
 
 function drawEnemySpawnPortal(ctx, e) {
@@ -2089,38 +1995,17 @@ function drawEnemySpawnPortal(ctx, e) {
   const t = 1 - Math.max(0, Math.min(1, e.spawnTimer / teleDur));
   const pulse = 0.6 + Math.sin(G.totalTime * 16 + (e._motionSeed || 0)) * 0.2;
   const color = meta.color || '#ff7777';
-  const accent = meta.accent || '#ffffff';
   const dirX = e._spawnDirX || 0;
   const dirY = e._spawnDirY || 1;
   const angle = Math.atan2(dirY, dirX || 0.0001);
-  const ringR = e.sz + 8 + t * 9;
   ctx.save();
   ctx.fillStyle = combatAlphaColor(color, (0.08 + t * 0.18) * pulse);
   ctx.beginPath();
   ctx.ellipse(0, e.sz * 0.52, e.sz * (0.7 + t * 0.18), Math.max(5, e.sz * 0.3), 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.strokeStyle = combatAlphaColor(color, 0.28 + t * 0.42);
-  ctx.lineWidth = 2.4;
-  ctx.beginPath();
-  ctx.arc(0, 0, ringR, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.strokeStyle = combatAlphaColor(accent, 0.22 + t * 0.26);
-  ctx.lineWidth = 1.4;
-  ctx.beginPath();
-  ctx.arc(0, 0, ringR * 0.72, 0, Math.PI * 2);
-  ctx.stroke();
   ctx.rotate(angle + Math.PI * 0.5);
   ctx.fillStyle = combatAlphaColor(color, (0.1 + t * 0.22) * pulse);
   ctx.fillRect(-3.5, -36 + (1 - t) * 9, 7, 48);
-  ctx.strokeStyle = combatAlphaColor(accent, 0.16 + t * 0.34);
-  ctx.lineWidth = 2;
-  const crossLen = 7 + t * 7;
-  ctx.beginPath();
-  ctx.moveTo(-crossLen, 0);
-  ctx.lineTo(crossLen, 0);
-  ctx.moveTo(0, -crossLen);
-  ctx.lineTo(0, crossLen);
-  ctx.stroke();
   ctx.restore();
 }
 
@@ -2170,36 +2055,7 @@ function drawPlayerCombatFeedback(ctx) {
     ctx.restore();
   }
 
-  // Ice slow visual — blue tint aura around player
-  if (P._iceSlow > 0) {
-    ctx.save();
-    ctx.translate(P.x, P.y);
-    ctx.globalCompositeOperation = 'lighter';
-    const pulse = 0.7 + Math.sin(G.totalTime * 8) * 0.15;
-    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, P.sz * 2.5);
-    grad.addColorStop(0, `rgba(136,204,255,${0.18 * pulse})`);
-    grad.addColorStop(0.5, `rgba(170,221,255,${0.08 * pulse})`);
-    grad.addColorStop(1, 'rgba(136,204,255,0)');
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(0, 0, P.sz * 2.5, 0, Math.PI * 2);
-    ctx.fill();
-    // Frost ring
-    ctx.strokeStyle = `rgba(200,230,255,${0.25 * pulse})`;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(0, 0, P.sz * 1.5, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-    // Spawn frost particles occasionally
-    if (Math.random() < 0.15 && typeof spawnParticles === 'function') {
-      const a = Math.random() * Math.PI * 2;
-      spawnParticles(P.x + Math.cos(a) * P.sz, P.y + Math.sin(a) * P.sz, 1, {
-        speed: 15, speedVar: 8, life: 0.3, size: 2, sizeEnd: 0,
-        colors: ['#88ccff', '#ffffff'], friction: 0.92, gravity: -30, shape: 'circle'
-      });
-    }
-  }
+  // Ice slow status remains gameplay-only (no player aura/ring overlay).
 }
 
 function render() {
@@ -2378,34 +2234,7 @@ function render() {
       ctx.beginPath(); ctx.ellipse(0, 0, 16, 21, 0, 0, Math.PI * 2); ctx.stroke();
     }
     if (h.type === 'depeg') {
-      const radius = h.data.radius || 74;
-      const dCol = h.data.color || '#67d7ff';
-      const dr = parseInt(dCol.slice(1, 3), 16) || 103;
-      const dg = parseInt(dCol.slice(3, 5), 16) || 215;
-      const db = parseInt(dCol.slice(5, 7), 16) || 255;
-      const pulse = 0.6 + Math.sin(h.tick * 8) * 0.2;
-      // Warning fill with gradient
-      const depegGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
-      depegGrad.addColorStop(0, `rgba(${dr},${dg},${db},${0.2 * pulse})`);
-      depegGrad.addColorStop(0.6, `rgba(${dr},${dg},${db},${0.12 * pulse})`);
-      depegGrad.addColorStop(1, `rgba(${dr},${dg},${db},${0.04 * pulse})`);
-      ctx.fillStyle = depegGrad;
-      ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.fill();
-      // Pulsing ring
-      ctx.strokeStyle = `rgba(${dr},${dg},${db},${0.6 * pulse})`;
-      ctx.lineWidth = 3;
-      ctx.setLineDash([8, 6]);
-      ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.stroke();
-      ctx.setLineDash([]);
-      // Inner warning ring
-      ctx.strokeStyle = `rgba(255,255,255,${0.25 * pulse})`;
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(0, 0, radius * 0.5, 0, Math.PI * 2); ctx.stroke();
-      // Warning cross
-      ctx.strokeStyle = `rgba(${dr},${dg},${db},${0.3 * pulse})`;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(-radius * 0.4, -radius * 0.4); ctx.lineTo(radius * 0.4, radius * 0.4);
-      ctx.moveTo(radius * 0.4, -radius * 0.4); ctx.lineTo(-radius * 0.4, radius * 0.4); ctx.stroke();
+      // V1 cleanup: keep depeg hazard gameplay active but hide large blue zone circles.
     }
     if (h.type === 'margincall') {
       const radius = h.data.radius || 70;
@@ -2579,28 +2408,7 @@ function render() {
   for (const w of P.weapons) {
     const def = WEAPONS[w.id]; if (!def) continue;
     if (def.type === 'aura' && w._auraRadius) {
-      ctx.save(); ctx.translate(P.x, P.y);
-      const edgeColor = def.slow ? '180,80,255' : '0,255,140';
-      const pulse = 0.5 + Math.sin(G.totalTime * 3.4) * 0.5;
-      ctx.setLineDash([10, 14]);
-      ctx.strokeStyle = `rgba(${edgeColor},${0.14 + pulse * 0.08})`;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0, 0, w._auraRadius, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.strokeStyle = `rgba(${edgeColor},${0.08 + pulse * 0.05})`;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(0, 0, w._auraRadius - 12, 0, Math.PI * 2);
-      ctx.stroke();
-      const rippleR = Math.max(12, (G.totalTime * 42) % w._auraRadius);
-      ctx.strokeStyle = `rgba(${edgeColor},${0.09 * (1 - rippleR / w._auraRadius)})`;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0, 0, rippleR, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      // V1 cleanup: keep aura gameplay active, hide world-space aura circles.
     }
     // Orbitals
     if (def.type === 'orbital' && w._orbCnt) {
@@ -2830,20 +2638,7 @@ function render() {
     ctx.save();
     ctx.translate(pk.x, pk.y + bob);
 
-    if (pk.mag) {
-      const ang = Math.atan2(P.y - pk.y, P.x - pk.x);
-      ctx.save();
-      ctx.rotate(ang);
-      ctx.strokeStyle = `rgba(${getPickupGlow(pk.type)},0.26)`;
-      ctx.lineWidth = 2.2;
-      ctx.beginPath();
-      ctx.moveTo(-22, -4);
-      ctx.lineTo(-6, -1.5);
-      ctx.moveTo(-18, 3.5);
-      ctx.lineTo(-5, 1.4);
-      ctx.stroke();
-      ctx.restore();
-    }
+    // Keep magnet behavior without drawing trailing connector lines.
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
@@ -2904,12 +2699,9 @@ function render() {
     ctx.rotate(e.renderLean || 0);
     ctx.scale((e.renderScaleX || 1) * revealScale * deathScale, (e.renderScaleY || 1) * revealScale * deathScale);
     ctx.globalAlpha *= revealAlpha * deathAlpha;
-    // Elite enemy gold aura
+    // Elite enemy emphasis without ring overlays
     if (e.isElite) {
-      ctx.strokeStyle = `rgba(255,215,0,${0.5 + Math.sin(G.totalTime * 5) * 0.3})`;
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(0, 0, e.sz + 8, 0, Math.PI * 2); ctx.stroke();
-      ctx.scale(1.3, 1.3);
+      ctx.scale(1.2, 1.2);
     }
     // Scale down split glitches
     if (e.isSplit) ctx.scale(0.6, 0.6);
@@ -3403,7 +3195,7 @@ function getTacticalHudLayout() {
   const panelW = 156;
   const panelH = 190;
   const panelX = W - panelW - 16;
-  const panelY = 44;
+  const panelY = 56;
   const radarSize = 132;
   const radius = radarSize / 2;
   return {
@@ -4020,12 +3812,6 @@ setTimeout(updateMenuHighscores, 100);
     }
 
     activeCtx.globalAlpha = 1;
-
-    // Grid lines
-    activeCtx.strokeStyle = 'rgba(80, 227, 194, 0.06)';
-    activeCtx.lineWidth = 1;
-    for (let y = 0; y < 700; y += 50) { activeCtx.beginPath(); activeCtx.moveTo(0, y); activeCtx.lineTo(1000, y); activeCtx.stroke(); }
-    for (let x = 0; x < 1000; x += 50) { activeCtx.beginPath(); activeCtx.moveTo(x, 0); activeCtx.lineTo(x, 700); activeCtx.stroke(); }
 
     requestAnimationFrame(animateMenu);
   }

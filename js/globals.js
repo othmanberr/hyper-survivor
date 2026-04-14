@@ -45,21 +45,23 @@ const ARCADE_EARLY_DIFFICULTY = [
 ];
 
 const ADVENTURE_EARLY_DIFFICULTY = [
-    { hpMult: 0.92, spdMult: 0.98, spawnRate: 0.74, batchSize: 2, maxType: 2 },
-    { hpMult: 1.00, spdMult: 1.00, spawnRate: 0.69, batchSize: 3, maxType: 2 },
-    { hpMult: 1.08, spdMult: 1.02, spawnRate: 0.64, batchSize: 3, maxType: 3 },
-    { hpMult: 1.16, spdMult: 1.03, spawnRate: 0.60, batchSize: 4, maxType: 3 },
-    { hpMult: 1.24, spdMult: 1.05, spawnRate: 0.57, batchSize: 4, maxType: 4 },
-    { hpMult: 1.32, spdMult: 1.06, spawnRate: 0.54, batchSize: 4, maxType: 4 },
-    { hpMult: 1.40, spdMult: 1.07, spawnRate: 0.52, batchSize: 5, maxType: 6 },
-    { hpMult: 1.48, spdMult: 1.08, spawnRate: 0.50, batchSize: 5, maxType: 6 },
-    { hpMult: 1.56, spdMult: 1.09, spawnRate: 0.48, batchSize: 5, maxType: 7 },
-    { hpMult: 1.64, spdMult: 1.10, spawnRate: 0.46, batchSize: 6, maxType: 7 }
+    { hpMult: 0.82, spdMult: 0.94, spawnRate: 0.90, batchSize: 1, maxType: 1 },
+    { hpMult: 0.88, spdMult: 0.95, spawnRate: 0.84, batchSize: 2, maxType: 1 },
+    { hpMult: 0.94, spdMult: 0.96, spawnRate: 0.80, batchSize: 2, maxType: 2 },
+    { hpMult: 1.00, spdMult: 0.97, spawnRate: 0.76, batchSize: 2, maxType: 2 },
+    { hpMult: 1.06, spdMult: 0.98, spawnRate: 0.72, batchSize: 3, maxType: 3 },
+    { hpMult: 1.12, spdMult: 1.00, spawnRate: 0.68, batchSize: 3, maxType: 3 },
+    { hpMult: 1.18, spdMult: 1.01, spawnRate: 0.64, batchSize: 3, maxType: 4 },
+    { hpMult: 1.24, spdMult: 1.02, spawnRate: 0.60, batchSize: 4, maxType: 4 },
+    { hpMult: 1.30, spdMult: 1.03, spawnRate: 0.57, batchSize: 4, maxType: 5 },
+    { hpMult: 1.36, spdMult: 1.04, spawnRate: 0.54, batchSize: 4, maxType: 5 }
 ];
 
 // Difficulty scaling per wave per mode
 window.getDifficulty = function (wave) {
     const enemyTypeCap = Math.max(0, (typeof ENEMY_DEFS !== 'undefined' ? ENEMY_DEFS.length : 8) - 1);
+    const stageNum = Math.floor((Math.max(1, wave) - 1) / WAVES_PER_STAGE) + 1;
+    const stageTypeCap = Math.max(1, Math.min(enemyTypeCap, Math.floor(((stageNum - 1) / 9) * enemyTypeCap) + 1));
     if (typeof DEBUG_ALL_ENEMIES !== 'undefined' && DEBUG_ALL_ENEMIES) {
         return {
             hpMult: 0.06,                      // Ennemis meurent en 1 balle
@@ -77,7 +79,7 @@ window.getDifficulty = function (wave) {
             spdMult: preset.spdMult,
             spawnRate: preset.spawnRate,
             batchSize: preset.batchSize,
-            maxType: Math.min(enemyTypeCap, preset.maxType)
+            maxType: Math.min(stageTypeCap, preset.maxType)
         };
     }
     if (G.mode === 'arcade') {
@@ -89,12 +91,15 @@ window.getDifficulty = function (wave) {
             maxType: enemyTypeCap
         };
     }
+    const maxAdventureWave = 10 * WAVES_PER_STAGE;
+    const tailProgress = Math.min(1, Math.max(0, (wave - ADVENTURE_EARLY_DIFFICULTY.length) / Math.max(1, maxAdventureWave - ADVENTURE_EARLY_DIFFICULTY.length)));
+    const eased = Math.pow(tailProgress, 1.2);
     return {
-        hpMult: 1.64 + Math.max(0, wave - 10) * 0.07,
-        spdMult: 1.10 + Math.max(0, wave - 10) * 0.014,
-        spawnRate: Math.max(0.24, 0.46 - Math.max(0, wave - 10) * 0.015),
-        batchSize: Math.min(8, 6 + Math.floor(Math.max(0, wave - 10) / 2)),
-        maxType: enemyTypeCap
+        hpMult: 1.36 + eased * 0.84,
+        spdMult: 1.04 + eased * 0.20,
+        spawnRate: Math.max(0.30, 0.54 - eased * 0.24),
+        batchSize: Math.min(8, 4 + Math.floor(eased * 4.2)),
+        maxType: stageTypeCap
     };
 }
 

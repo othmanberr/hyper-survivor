@@ -1309,33 +1309,7 @@ function drawBGTiled(ctx, stage, camX, camY) {
     ctx.drawImage(bgImg, sx, sy, sw, sh, 0, 0, W, H);
   }
 
-  // 2) Dark veil + grid ONLY inside the playable zone (BUILDING bounds)
-  const bL = BUILDING_LEFT - camX, bT = BUILDING_TOP - camY;
-  const bW = BUILDING_RIGHT - BUILDING_LEFT, bH = BUILDING_BOTTOM - BUILDING_TOP;
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(bL, bT, bW, bH);
-  ctx.clip();
-
-  // Dark overlay on playable zone
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-  ctx.fillRect(bL, bT, bW, bH);
-
-  // Grid overlay inside playable zone
-  const floorTile = _getFloorTile(stage);
-  const fts = 128;
-  const fsx = Math.floor(camX / fts) * fts;
-  const fsy = Math.floor(camY / fts) * fts;
-  ctx.globalAlpha = 0.45;
-  for (let x = fsx; x < camX + W + fts; x += fts) {
-    for (let y = fsy; y < camY + H + fts; y += fts) {
-      ctx.drawImage(floorTile, x - camX, y - camY);
-    }
-  }
-  ctx.globalAlpha = 1;
-
-  ctx.restore();
+  // V1 visual cleanup: keep background raw, no dark veil/grid overlay on playfield.
 
   // Fade to black at world edges
   _drawEdgeBlend(ctx, camX, camY);

@@ -56,6 +56,17 @@ const CHARACTER_DEFS = [
         // Display points (each stat <= 99)
         stats: { hp: 78, spd: 40, armor: 70, crit: 26, cdMult: 0.95, dodge: 32, magnetRange: 130 },
         icon: '💎'
+    },
+    {
+        id: 'mage',
+        name: 'MAGE',
+        title: 'The Arcane Wizard',
+        desc: 'Maitre des sorts obscurs. Crit devastateur, lent mais implacable.',
+        color: '#b84fff',
+        glow: 'rgba(184, 79, 255, 0.4)',
+        // Display points (each stat <= 99)
+        stats: { hp: 45, spd: 20, armor: 8, crit: 90, cdMult: 0.75, dodge: 15, magnetRange: 150 },
+        icon: '🔮'
     }
 ];
 
@@ -95,7 +106,8 @@ const CHAR_SPRITE_PATHS = {
     hypurr: 'assets/player/hypurr/south.png',
     pasheur: 'assets/player/pasheur/south.png',
     catbalette: 'assets/player/catbalette/south.png',
-    pip: 'assets/player/pip/south.png'
+    pip: 'assets/player/pip/south.png',
+    mage: 'assets/player/mage/south.png'
 };
 
 // Fighter select portraits (larger, standing pose like Street Fighter)
@@ -104,7 +116,8 @@ const CHAR_SELECT_PATHS = {
     hypurr: 'assets/player/select/hypurr_select.png',
     pasheur: 'assets/player/select/pasheur_select.png',
     catbalette: 'assets/player/select/catbalette_select.png',
-    pip: 'assets/player/select/pip_select.png'
+    pip: 'assets/player/select/pip_select.png',
+    mage: 'assets/player/select/mage_select.png'
 };
 
 // Preload character sprites (in-game)
