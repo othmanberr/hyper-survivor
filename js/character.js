@@ -148,6 +148,7 @@ loadCharIdle('hypurr');
 loadCharIdle('pasheur');
 loadCharIdle('catbalette');
 loadCharIdle('pip');
+loadCharIdle('mage');
 
 const JEFF_WALK_AVAILABLE = ['south', 'north', 'west', 'south-west', 'east', 'south-east', 'north-west', 'north-east'];
 const JEFF_WALK_MIRROR_MAP = {};
@@ -367,6 +368,7 @@ loadCharVictoryAnims('hypurr');
 loadCharVictoryAnims('pasheur');
 loadCharVictoryAnims('catbalette');
 loadCharVictoryAnims('pip');
+loadCharVictoryAnims('mage');
 
 // Legacy aliases
 function loadJeffShootFrames() { loadCharShootFrames('jeff'); }
