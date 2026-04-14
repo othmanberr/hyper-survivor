@@ -35,3 +35,7 @@ tmp/
 *.swp
 *.swo
 .vercel
+
+# MCP configs (contiennent des tokens API)
+.mcp.json
+server.log
